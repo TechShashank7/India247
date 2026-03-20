@@ -344,7 +344,7 @@ const LandingPage = () => {
               animation: !isChatOpen ? 'floating 3s ease-in-out infinite' : 'none'
             }}
           >
-            {isChatOpen ? <X size={24} /> : '🙏'}
+            {isChatOpen ? <X size={24} /> : '👩‍🦰'}
           </button>
 
           <style dangerouslySetInnerHTML={{
