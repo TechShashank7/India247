@@ -445,30 +445,34 @@ Ask ONE final short follow-up question (duration, danger, or exact spot).
     const base64Data = dataUrl.split(',')[1];
     const mediaType  = file.type || 'image/jpeg';
 
-    const verifyPrompt = `You are a strict image verification AI for a civic complaint platform in India.
-Analyze this image and perform these checks:
+    const verifyPrompt = `You are a STRICT image verification AI for a civic complaint platform in India. Your job is to REJECT fake images. Be aggressive — false positives (passing fake images) are worse than false negatives.
 
-1. BLUR CHECK: Is the image clear enough to identify a real-world civic issue? Reject if too blurry, dark, or unclear.
+Analyze this image for these checks:
 
-2. AI-GENERATED CHECK: Does this image look AI-generated or digitally fabricated?
-   Look carefully for these AI generation artifacts:
-   - Unnaturally smooth or perfect textures (roads, walls, ground)
-   - Dreamlike, painterly, or overly rendered quality
-   - Inconsistent or impossible lighting and shadows
-   - Perfectly symmetric or unrealistic patterns
-   - Watermarks, metadata artifacts, or blurriness at edges typical of AI
-   - Surreal colors, unnatural depth, or hyper-detailed surfaces
-   - Objects that look "generated" rather than photographed
-   If you see ANY of these signs, mark aiGeneratedCheck as false and passed as false.
-   Be STRICT — when in doubt, reject it.
+1. BLUR CHECK: Is it clear enough to identify a real civic issue? Reject if too blurry or dark.
 
-3. RELEVANCE CHECK: Does the image actually show a real civic issue matching: "${formData.category}"?
-   The photo must show a real-world physical problem. Reject illustrations, screenshots, or unrelated images.
+2. AI-GENERATED CHECK (MOST IMPORTANT — BE VERY STRICT):
+   Immediately REJECT if you see ANY of these:
+   - A "✦" or "✧" sparkle symbol/watermark anywhere (this is Gemini's AI watermark)
+   - Any AI generator watermark (Midjourney, DALL-E, Stable Diffusion, etc.)
+   - Surreal, impossible, or dreamlike content inside a real-world scene (e.g. swirling vortex, eyes, fantasy objects in a road)
+   - Unnaturally smooth textures on roads, walls, or ground
+   - Perfect lighting with no natural inconsistencies
+   - Objects that couldn't physically exist together
+   - Painterly, over-rendered, or hyper-detailed quality
+   - Pixel artifacts or glitch-like patterns typical of AI generation
+   - Any content that looks "generated" rather than photographed with a phone camera
+   If you see even ONE of these signs, set aiGeneratedCheck to false and passed to false immediately.
 
-Respond ONLY with valid JSON (no markdown fences, no extra text):
+3. RELEVANCE CHECK: Does it show a real civic issue matching: "${formData.category}"?
+   Must be a real photograph, not an illustration or rendering.
+
+Default to REJECTION when uncertain. Only pass images that are clearly genuine phone photographs of real civic issues.
+
+Respond ONLY with valid JSON (no markdown, no extra text):
 {"passed":true,"blurCheck":true,"aiGeneratedCheck":true,"relevanceCheck":true,"failReason":"","confidence":"high"}
 
-If passed is false, explain clearly in failReason why the image was rejected.`;
+Set passed to false and explain in failReason if anything is wrong.`;
 
     try {
       const rawText = await callGeminiVision({ prompt: verifyPrompt, base64Image: base64Data, mediaType });

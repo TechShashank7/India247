@@ -41,7 +41,7 @@ Building a modern, responsive, premium frontend for India247 — a civic complai
 
 ### Phase 6: API Integration
 - Switched from Claude API to Gemini API (billing enabled now)
-- Model: gemini-2.5-flash-lite
+- Model: gemini-2.5-flash-lite for text conversation and gemini-2.5-flash for vision
 - Secured Gemini and Google Maps API keys via `.env` file (`VITE_GEMINI_API_KEY`, `VITE_GOOGLE_MAPS_API_KEY`) to prevent exposure during Git push.
 - Full AI conversation flow, image verification, and complaint summary all working
 
