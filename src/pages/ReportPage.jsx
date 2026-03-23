@@ -8,7 +8,10 @@ const GEMINI_API_KEY      = import.meta.env.VITE_GEMINI_API_KEY;
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 // ─────────────────────────────────────────────────────────────────────────────
 
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`;
+// gemini-2.5-flash-lite for fast text conversation
+const GEMINI_URL        = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`;
+// gemini-2.5-flash (full) for vision — better AI image detection
+const GEMINI_VISION_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
 
 // ─── Fix PlaceAutocompleteElement styling ─────────────────────────────────────
 const styleEl = document.createElement('style');
@@ -48,7 +51,7 @@ if (!document.getElementById('gmp-style')) {
   styleEl.id = 'gmp-style';
   document.head.appendChild(styleEl);
 }
- 
+
 const ISSUE_CATEGORIES = [
   { id: 'road',    name: 'Pothole / Road Damage',   icon: '🕳️' },
   { id: 'garbage', name: 'Garbage Not Collected',    icon: '🗑️' },
@@ -57,10 +60,10 @@ const ISSUE_CATEGORIES = [
   { id: 'park',    name: 'Park / Public Space',       icon: '🌳' },
   { id: 'other',   name: 'Other Issue',              icon: '✏️' },
 ];
- 
+
 // ─── Retry helper ────────────────────────────────────────────────────────────
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
- 
+
 async function fetchWithRetry(url, options, retries = 3) {
   for (let i = 0; i < retries; i++) {
     const res = await fetch(url, options);
@@ -73,14 +76,14 @@ async function fetchWithRetry(url, options, retries = 3) {
   }
   throw new Error('Too many requests — please wait a moment and try again.');
 }
- 
+
 // ─── Gemini text helper ───────────────────────────────────────────────────────
 async function callGemini({ system, messages }) {
   const history = messages
     .map(m => (m.role === 'user' ? `User: ${m.content}` : `Assistant: ${m.content}`))
     .join('\n');
   const fullPrompt = system ? `${system}\n\n${history}` : history;
- 
+
   const res = await fetchWithRetry(GEMINI_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -93,10 +96,10 @@ async function callGemini({ system, messages }) {
   if (!res.ok) throw new Error(data?.error?.message || 'Gemini API error');
   return data.candidates[0].content.parts[0].text.trim();
 }
- 
-// ─── Gemini vision helper ─────────────────────────────────────────────────────
+
+// ─── Gemini vision helper (uses stronger model) ───────────────────────────────
 async function callGeminiVision({ prompt, base64Image, mediaType }) {
-  const res = await fetchWithRetry(GEMINI_URL, {
+  const res = await fetchWithRetry(GEMINI_VISION_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -113,7 +116,7 @@ async function callGeminiVision({ prompt, base64Image, mediaType }) {
   if (!res.ok) throw new Error(data?.error?.message || 'Gemini Vision error');
   return data.candidates[0].content.parts[0].text.trim();
 }
- 
+
 // ─── Load Google Maps ─────────────────────────────────────────────────────────
 function loadGoogleMaps() {
   return new Promise((resolve, reject) => {
@@ -134,23 +137,21 @@ function loadGoogleMaps() {
     document.head.appendChild(script);
   });
 }
- 
+
 // ─── Location Picker ──────────────────────────────────────────────────────────
 const LocationPicker = ({ onLocationConfirmed }) => {
   const mapRef                   = useRef(null);
   const mapInstanceRef           = useRef(null);
   const markerRef                = useRef(null);
   const autocompleteContainerRef = useRef(null);
-  // Store address in a plain ref — completely outside React state
-  // so event listeners always read/write the latest value
   const addressRef               = useRef('');
- 
+
   const [address,  setAddress]  = useState('');
   const [loading,  setLoading]  = useState(true);
   const [locating, setLocating] = useState(false);
- 
+
   const DEFAULT_CENTER = { lat: 28.6139, lng: 77.2090 };
- 
+
   const reverseGeocode = useCallback(async (lat, lng) => {
     const { Geocoder } = await window.google.maps.importLibrary('geocoding');
     const geocoder = new Geocoder();
@@ -161,7 +162,7 @@ const LocationPicker = ({ onLocationConfirmed }) => {
       }
     });
   }, []);
- 
+
   const placeMarkerAdv = useCallback((position, AdvancedMarkerElement) => {
     if (markerRef.current) markerRef.current.map = null;
     const pin = document.createElement('div');
@@ -179,7 +180,7 @@ const LocationPicker = ({ onLocationConfirmed }) => {
     });
     mapInstanceRef.current.panTo(position);
   }, []);
- 
+
   const handleCurrentLocation = () => {
     if (!navigator.geolocation) return alert('Geolocation not supported.');
     setLocating(true);
@@ -194,16 +195,15 @@ const LocationPicker = ({ onLocationConfirmed }) => {
       () => { alert('Could not fetch location. Pin it manually.'); setLocating(false); }
     );
   };
- 
+
   useEffect(() => {
     loadGoogleMaps().then(async () => {
       const { Map } = await window.google.maps.importLibrary('maps');
       const { PlaceAutocompleteElement } = await window.google.maps.importLibrary('places');
       const { AdvancedMarkerElement } = await window.google.maps.importLibrary('marker');
- 
-      // Store for use outside effect
+
       markerRef._AME = AdvancedMarkerElement;
- 
+
       mapInstanceRef.current = new Map(mapRef.current, {
         center: DEFAULT_CENTER,
         zoom: 13,
@@ -212,23 +212,22 @@ const LocationPicker = ({ onLocationConfirmed }) => {
         mapTypeControl: false,
         mapId: 'india247map',
       });
- 
+
       mapInstanceRef.current.addListener('click', (e) => {
         placeMarkerAdv({ lat: e.latLng.lat(), lng: e.latLng.lng() }, AdvancedMarkerElement);
         reverseGeocode(e.latLng.lat(), e.latLng.lng());
       });
- 
+
       const placeAutocomplete = new PlaceAutocompleteElement({
         includedRegionCodes: ['in'],
       });
       placeAutocomplete.style.colorScheme = 'light';
- 
+
       if (autocompleteContainerRef.current) {
         autocompleteContainerRef.current.innerHTML = '';
         autocompleteContainerRef.current.appendChild(placeAutocomplete);
       }
- 
-      // ── THE KEY FIX: event is now 'gmp-select', not 'gmp-placeselect' ──
+
       placeAutocomplete.addEventListener('gmp-select', async ({ placePrediction }) => {
         const place = placePrediction.toPlace();
         await place.fetchFields({ fields: ['formattedAddress', 'location'] });
@@ -239,11 +238,11 @@ const LocationPicker = ({ onLocationConfirmed }) => {
         addressRef.current = place.formattedAddress;
         setAddress(place.formattedAddress);
       });
- 
+
       setLoading(false);
     }).catch((e) => { console.error(e); setLoading(false); });
-  }, []); // ← empty deps — run once only, no stale closure risk
- 
+  }, []);
+
   return (
     <div className="flex flex-col gap-3">
       <div ref={autocompleteContainerRef} className="gmp-wrapper" />
@@ -288,11 +287,11 @@ const LocationPicker = ({ onLocationConfirmed }) => {
     </div>
   );
 };
- 
+
 // ─── Main ReportPage ──────────────────────────────────────────────────────────
 const ReportPage = () => {
   const navigate = useNavigate();
- 
+
   const [step,               setStep]               = useState(1);
   const [messages,           setMessages]           = useState([
     { isBot: true, text: "Namaste! 🙏 I'm India247 Assistant. I'll help you file your complaint in under 60 seconds. What civic issue are you facing today?" }
@@ -305,16 +304,17 @@ const ReportPage = () => {
   const [verificationResult, setVerificationResult] = useState(null);
   const [trackingId]                                = useState(`IND-2026-${Math.floor(10000 + Math.random() * 90000)}`);
   const [complaintSummary,   setComplaintSummary]   = useState('');
- 
+
   const messagesEndRef = useRef(null);
   const fileInputRef   = useRef(null);
   const chatHistoryRef = useRef([]);
   const turnCountRef   = useRef(0);
- 
+  const lastCallTimeRef = useRef(0);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping, aiVerifying]);
- 
+
   const addBotMessage = (text, delay = 800) => {
     setIsTyping(true);
     return new Promise((resolve) => {
@@ -325,19 +325,17 @@ const ReportPage = () => {
       }, delay);
     });
   };
- 
+
   const addUserMessage = (text) => {
     setMessages(prev => [...prev, { isBot: false, text }]);
   };
- 
-  const lastCallTimeRef = useRef(0);
- 
+
   // ── STEP 1 ─────────────────────────────────────────────────────────────────
   const handleCategorySelect = async (category) => {
     const now = Date.now();
     if (now - lastCallTimeRef.current < 3000) return;
     lastCallTimeRef.current = now;
- 
+
     setFormData(prev => ({ ...prev, category: category.name }));
     addUserMessage(category.name);
     setStep(2);
@@ -363,20 +361,20 @@ Ask exactly ONE short follow-up question (e.g. severity, how long, exact spot).
       setMessages(prev => [...prev, { isBot: true, text: `Can you describe the ${category.name} issue? (severity, exact spot, how long it's been there) 📝` }]);
     }
   };
- 
+
   // ── STEP 2 ─────────────────────────────────────────────────────────────────
   const handleDescriptionSubmit = async (e) => {
     e.preventDefault();
     const now = Date.now();
     if (!reportText.trim() || now - lastCallTimeRef.current < 3000) return;
     lastCallTimeRef.current = now;
- 
+
     const userText = reportText.trim();
     setReportText('');
     addUserMessage(userText);
     turnCountRef.current += 1;
     chatHistoryRef.current.push({ role: 'user', content: userText });
- 
+
     if (turnCountRef.current >= 2) {
       const fullDesc = chatHistoryRef.current
         .filter(m => m.role === 'user').map(m => m.content).join('. ');
@@ -397,7 +395,7 @@ Write ONE warm thank-you sentence for the user finishing their complaint descrip
       setTimeout(() => moveToPhotoStep(), 1200);
       return;
     }
- 
+
     setIsTyping(true);
     try {
       const reply = await callGemini({
@@ -418,12 +416,12 @@ Ask ONE final short follow-up question (duration, danger, or exact spot).
       setTimeout(() => moveToPhotoStep(), 600);
     }
   };
- 
+
   const moveToPhotoStep = () => {
     setStep(3);
     addBotMessage("Thanks for the details! 📸 Now please upload a clear photo of the issue. Our AI will verify it to speed up resolution.");
   };
- 
+
   // ── STEP 3 ─────────────────────────────────────────────────────────────────
   const handlePhotoUpload = (e) => {
     if (!e.target.files || e.target.files.length === 0) return;
@@ -437,35 +435,51 @@ Ask ONE final short follow-up question (duration, danger, or exact spot).
     };
     reader.readAsDataURL(file);
   };
- 
-  // ── STEP 4 ────────────────────────────────────────────────────────────────
+
+  // ── STEP 4: Strict AI image verification ──────────────────────────────────
   const handleAIVerification = async (file, dataUrl) => {
     setStep(4);
     setAiVerifying(true);
     setVerificationResult(null);
- 
+
     const base64Data = dataUrl.split(',')[1];
     const mediaType  = file.type || 'image/jpeg';
- 
-    const verifyPrompt = `You are an image verification AI for a civic complaint platform in India.
-Analyze this image and check:
-1. BLUR CHECK: Is it clear enough to identify the civic issue?
-2. AI-GENERATED CHECK: Does it look AI-generated or fabricated?
-3. RELEVANCE CHECK: Does it show a civic issue matching: "${formData.category}"?
- 
+
+    const verifyPrompt = `You are a strict image verification AI for a civic complaint platform in India.
+Analyze this image and perform these checks:
+
+1. BLUR CHECK: Is the image clear enough to identify a real-world civic issue? Reject if too blurry, dark, or unclear.
+
+2. AI-GENERATED CHECK: Does this image look AI-generated or digitally fabricated?
+   Look carefully for these AI generation artifacts:
+   - Unnaturally smooth or perfect textures (roads, walls, ground)
+   - Dreamlike, painterly, or overly rendered quality
+   - Inconsistent or impossible lighting and shadows
+   - Perfectly symmetric or unrealistic patterns
+   - Watermarks, metadata artifacts, or blurriness at edges typical of AI
+   - Surreal colors, unnatural depth, or hyper-detailed surfaces
+   - Objects that look "generated" rather than photographed
+   If you see ANY of these signs, mark aiGeneratedCheck as false and passed as false.
+   Be STRICT — when in doubt, reject it.
+
+3. RELEVANCE CHECK: Does the image actually show a real civic issue matching: "${formData.category}"?
+   The photo must show a real-world physical problem. Reject illustrations, screenshots, or unrelated images.
+
 Respond ONLY with valid JSON (no markdown fences, no extra text):
-{"passed":true,"blurCheck":true,"aiGeneratedCheck":true,"relevanceCheck":true,"failReason":"","confidence":"high"}`;
- 
+{"passed":true,"blurCheck":true,"aiGeneratedCheck":true,"relevanceCheck":true,"failReason":"","confidence":"high"}
+
+If passed is false, explain clearly in failReason why the image was rejected.`;
+
     try {
       const rawText = await callGeminiVision({ prompt: verifyPrompt, base64Image: base64Data, mediaType });
       const cleaned = rawText.replace(/```json|```/g, '').trim();
       let result;
       try { result = JSON.parse(cleaned); }
       catch { result = { passed: true, blurCheck: true, aiGeneratedCheck: true, relevanceCheck: true, failReason: '', confidence: 'medium' }; }
- 
+
       setVerificationResult(result);
       setAiVerifying(false);
- 
+
       if (result.passed) {
         setFormData(prev => ({ ...prev, imageVerified: true, imageData: dataUrl }));
         setStep(5);
@@ -473,9 +487,10 @@ Respond ONLY with valid JSON (no markdown fences, no extra text):
       } else {
         setStep(3);
         if (fileInputRef.current) fileInputRef.current.value = '';
-        await addBotMessage(`⚠️ Image verification failed. ${result.failReason} Please upload a clearer photo.`);
+        await addBotMessage(`⚠️ Image verification failed. ${result.failReason} Please upload a real photo of the issue.`);
       }
     } catch {
+      // On API error be lenient — pass the image
       setVerificationResult({ passed: true, blurCheck: true, aiGeneratedCheck: true, relevanceCheck: true, failReason: '', confidence: 'low' });
       setAiVerifying(false);
       setFormData(prev => ({ ...prev, imageVerified: true, imageData: dataUrl }));
@@ -483,7 +498,7 @@ Respond ONLY with valid JSON (no markdown fences, no extra text):
       await addBotMessage(`✅ Photo received! Now please share your location so we can assign your complaint correctly.`);
     }
   };
- 
+
   // ── STEP 5 ─────────────────────────────────────────────────────────────────
   const handleLocationConfirmed = async (address) => {
     setFormData(prev => ({ ...prev, location: address }));
@@ -491,24 +506,24 @@ Respond ONLY with valid JSON (no markdown fences, no extra text):
     setStep(6);
     await addBotMessage("Almost done! Would you like to keep your identity anonymous? Your complaint will still be filed and tracked. 🔒");
   };
- 
+
   // ── STEP 6 → 7 ─────────────────────────────────────────────────────────────
   const handleAnonymousSubmit = async (isAnonymous) => {
     addUserMessage(isAnonymous ? "🔒 Yes, keep me anonymous" : "👤 No, use my name");
     setFormData(prev => ({ ...prev, anonymous: isAnonymous }));
     setStep(7);
     setIsTyping(true);
- 
+
     const summaryPrompt = `Generate a formal civic complaint summary for official submission in India.
 Category: ${formData.category}
 Description: ${formData.description}
 Location: ${formData.location}
 Anonymous: ${isAnonymous ? 'Yes' : 'No'}
 Tracking ID: ${trackingId}
- 
+
 Write a concise formal 3-4 sentence complaint in third person for a municipal authority.
 Start with "This complaint pertains to..." and include the Tracking ID at the end.`;
- 
+
     try {
       const summary = await callGemini({
         system: 'You generate formal civic complaint summaries for Indian municipal authorities. Be concise and professional.',
@@ -523,7 +538,7 @@ Start with "This complaint pertains to..." and include the Tracking ID at the en
       setMessages(prev => [...prev, { isBot: true, text: "🎉 Your complaint has been successfully filed!" }]);
     }
   };
- 
+
   const stepsList = [
     { num: 1, text: "Select Issue"     },
     { num: 2, text: "Describe Issue"   },
@@ -532,9 +547,11 @@ Start with "This complaint pertains to..." and include the Tracking ID at the en
     { num: 5, text: "Add Location"     },
     { num: 6, text: "Confirm & Submit" },
   ];
- 
+
   return (
     <div className="pt-16 min-h-screen bg-gray-50 flex">
+
+      {/* Sidebar */}
       <div className="hidden md:block w-80 bg-white border-r border-gray-100 p-8 h-[calc(100vh-64px)] overflow-y-auto sticky top-16">
         <h2 className="text-xl font-bold text-navy mb-8">Filing Complaint</h2>
         <div className="space-y-6">
@@ -566,10 +583,12 @@ Start with "This complaint pertains to..." and include the Tracking ID at the en
           </div>
         )}
       </div>
- 
+
+      {/* Chat Area */}
       <div className="flex-1 flex flex-col h-[calc(100vh-64px)] relative">
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
           <div className="max-w-3xl mx-auto">
+
             {messages.map((msg, idx) => (
               <ChatBubble key={idx} isBot={msg.isBot} message={msg.text}>
                 {msg.isImage && msg.imageUrl && (
@@ -577,7 +596,7 @@ Start with "This complaint pertains to..." and include the Tracking ID at the en
                 )}
               </ChatBubble>
             ))}
- 
+
             {isTyping && (
               <ChatBubble isBot={true}>
                 <div className="flex space-x-1 items-center h-4">
@@ -587,7 +606,7 @@ Start with "This complaint pertains to..." and include the Tracking ID at the en
                 </div>
               </ChatBubble>
             )}
- 
+
             {(aiVerifying || (verificationResult && step === 4)) && (
               <div className="ml-12 mr-4 max-w-sm card mb-4 border border-indigo-100 bg-indigo-50/50">
                 <div className="flex items-center gap-3 font-semibold text-navy mb-4">
@@ -605,17 +624,27 @@ Start with "This complaint pertains to..." and include the Tracking ID at the en
                 )}
                 {!aiVerifying && verificationResult && (
                   <div className="space-y-2 text-sm">
-                    <div className="flex items-center gap-2"><span>{verificationResult.blurCheck ? '✅' : '❌'}</span><span className={verificationResult.blurCheck ? 'text-gray-700' : 'text-red-600'}>Image clarity</span></div>
-                    <div className="flex items-center gap-2"><span>{verificationResult.aiGeneratedCheck ? '✅' : '❌'}</span><span className={verificationResult.aiGeneratedCheck ? 'text-gray-700' : 'text-red-600'}>Not AI-generated</span></div>
-                    <div className="flex items-center gap-2"><span>{verificationResult.relevanceCheck ? '✅' : '❌'}</span><span className={verificationResult.relevanceCheck ? 'text-gray-700' : 'text-red-600'}>Matches reported issue</span></div>
+                    <div className="flex items-center gap-2">
+                      <span>{verificationResult.blurCheck ? '✅' : '❌'}</span>
+                      <span className={verificationResult.blurCheck ? 'text-gray-700' : 'text-red-600'}>Image clarity</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span>{verificationResult.aiGeneratedCheck ? '✅' : '❌'}</span>
+                      <span className={verificationResult.aiGeneratedCheck ? 'text-gray-700' : 'text-red-600'}>Not AI-generated</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span>{verificationResult.relevanceCheck ? '✅' : '❌'}</span>
+                      <span className={verificationResult.relevanceCheck ? 'text-gray-700' : 'text-red-600'}>Matches reported issue</span>
+                    </div>
                     {verificationResult.passed
                       ? <p className="mt-3 text-india-green font-semibold">✅ Verified — Confidence: {verificationResult.confidence}</p>
-                      : <p className="mt-3 text-red-600 font-medium">⚠️ {verificationResult.failReason}</p>}
+                      : <p className="mt-3 text-red-600 font-medium">⚠️ {verificationResult.failReason}</p>
+                    }
                   </div>
                 )}
               </div>
             )}
- 
+
             {step === 7 && !isTyping && complaintSummary && (
               <div className="ml-12 mr-4 max-w-lg card mb-8 border-2 border-green-100 bg-green-50/30">
                 <div className="text-center mb-6">
@@ -631,23 +660,36 @@ Start with "This complaint pertains to..." and include the Tracking ID at the en
                   <p>{complaintSummary}</p>
                 </div>
                 <div className="text-sm text-gray-600 mb-5 grid grid-cols-2 gap-2">
-                  <div className="bg-gray-50 rounded-lg p-3"><p className="text-xs text-gray-400 font-semibold uppercase mb-1">Category</p><p className="font-medium text-gray-800">{formData.category}</p></div>
-                  <div className="bg-gray-50 rounded-lg p-3"><p className="text-xs text-gray-400 font-semibold uppercase mb-1">Status</p><p className="font-medium text-orange-600">Pending Review</p></div>
-                  <div className="bg-gray-50 rounded-lg p-3 col-span-2"><p className="text-xs text-gray-400 font-semibold uppercase mb-1">Location</p><p className="font-medium text-gray-800">{formData.location}</p></div>
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-xs text-gray-400 font-semibold uppercase mb-1">Category</p>
+                    <p className="font-medium text-gray-800">{formData.category}</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-xs text-gray-400 font-semibold uppercase mb-1">Status</p>
+                    <p className="font-medium text-orange-600">Pending Review</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-3 col-span-2">
+                    <p className="text-xs text-gray-400 font-semibold uppercase mb-1">Location</p>
+                    <p className="font-medium text-gray-800">{formData.location}</p>
+                  </div>
                 </div>
                 <div className="flex flex-col gap-3">
                   <button onClick={() => navigate('/tracker')} className="btn-primary py-2.5">Track My Complaint</button>
-                  <button onClick={() => window.location.reload()} className="text-saffron font-semibold text-sm hover:underline text-center">Report Another Issue</button>
+                  <button onClick={() => window.location.reload()} className="text-saffron font-semibold text-sm hover:underline text-center">
+                    Report Another Issue
+                  </button>
                 </div>
               </div>
             )}
+
             <div ref={messagesEndRef} />
           </div>
         </div>
- 
+
         {(!aiVerifying && step !== 7 && !isTyping) && (
           <div className="p-4 bg-white border-t border-gray-100 shrink-0">
             <div className="max-w-3xl mx-auto">
+
               {step === 1 && (
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                   {ISSUE_CATEGORIES.map(cat => (
@@ -659,6 +701,7 @@ Start with "This complaint pertains to..." and include the Tracking ID at the en
                   ))}
                 </div>
               )}
+
               {step === 2 && (
                 <form onSubmit={handleDescriptionSubmit} className="flex gap-2">
                   <input type="text" value={reportText} onChange={(e) => setReportText(e.target.value)}
@@ -669,6 +712,7 @@ Start with "This complaint pertains to..." and include the Tracking ID at the en
                   </button>
                 </form>
               )}
+
               {step === 3 && (
                 <div className="border-2 border-dashed border-gray-300 rounded-2xl p-8 text-center hover:bg-gray-50 transition-colors cursor-pointer group"
                   onClick={() => fileInputRef.current?.click()}>
@@ -684,12 +728,14 @@ Start with "This complaint pertains to..." and include the Tracking ID at the en
                         <Camera size={28} />
                       </div>
                       <p className="font-semibold text-gray-700 mb-1">Click to upload or drag & drop</p>
-                      <p className="text-sm text-gray-500">Supports JPG, PNG (Max 5MB) · Must show the actual issue</p>
+                      <p className="text-sm text-gray-500">Supports JPG, PNG (Max 5MB) · Must be a real photo of the issue</p>
                     </div>
                   )}
                 </div>
               )}
+
               {step === 5 && <LocationPicker onLocationConfirmed={handleLocationConfirmed} />}
+
               {step === 6 && (
                 <div className="flex flex-col sm:flex-row gap-3">
                   <button onClick={() => handleAnonymousSubmit(true)}
@@ -702,6 +748,7 @@ Start with "This complaint pertains to..." and include the Tracking ID at the en
                   </button>
                 </div>
               )}
+
             </div>
           </div>
         )}
@@ -709,5 +756,5 @@ Start with "This complaint pertains to..." and include the Tracking ID at the en
     </div>
   );
 };
- 
+
 export default ReportPage;
