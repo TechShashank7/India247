@@ -436,7 +436,7 @@ Ask ONE final short follow-up question (duration, danger, or exact spot).
     reader.readAsDataURL(file);
   };
 
-  // ── STEP 4: Strict AI image verification ──────────────────────────────────
+  // ── STEP 4: Image verification ────────────────────────────────────────────
   const handleAIVerification = async (file, dataUrl) => {
     setStep(4);
     setAiVerifying(true);
@@ -445,34 +445,32 @@ Ask ONE final short follow-up question (duration, danger, or exact spot).
     const base64Data = dataUrl.split(',')[1];
     const mediaType  = file.type || 'image/jpeg';
 
-    const verifyPrompt = `You are a STRICT image verification AI for a civic complaint platform in India. Your job is to REJECT fake images. Be aggressive — false positives (passing fake images) are worse than false negatives.
+    const verifyPrompt = `You are an image verification AI for a civic complaint platform in India.
 
-Analyze this image for these checks:
+Analyze this image for exactly TWO checks:
 
-1. BLUR CHECK: Is it clear enough to identify a real civic issue? Reject if too blurry or dark.
+1. CLARITY CHECK (blurCheck): Is the image clear enough for a municipal officer to identify the issue?
+   - PASS if: the main subject is visible and identifiable
+   - FAIL if: the image is too blurry, too dark, heavily pixelated, or the issue cannot be seen at all
 
-2. AI-GENERATED CHECK (MOST IMPORTANT — BE VERY STRICT):
-   Immediately REJECT if you see ANY of these:
-   - A "✦" or "✧" sparkle symbol/watermark anywhere (this is Gemini's AI watermark)
-   - Any AI generator watermark (Midjourney, DALL-E, Stable Diffusion, etc.)
-   - Surreal, impossible, or dreamlike content inside a real-world scene (e.g. swirling vortex, eyes, fantasy objects in a road)
-   - Unnaturally smooth textures on roads, walls, or ground
-   - Perfect lighting with no natural inconsistencies
-   - Objects that couldn't physically exist together
-   - Painterly, over-rendered, or hyper-detailed quality
-   - Pixel artifacts or glitch-like patterns typical of AI generation
-   - Any content that looks "generated" rather than photographed with a phone camera
-   If you see even ONE of these signs, set aiGeneratedCheck to false and passed to false immediately.
+2. RELEVANCE CHECK (relevanceCheck): Does this image actually show a civic issue related to the category "${formData.category}"?
+   Category descriptions:
+   - "Pothole / Road Damage" → damaged road surface, cracks, potholes, broken pavement
+   - "Garbage Not Collected" → garbage pile, overflowing bin, waste on street
+   - "Water Leakage / Sewer" → water leak, flooded road, broken pipe, open drain, sewage
+   - "Broken Streetlight" → broken or missing streetlight, damaged light pole
+   - "Park / Public Space" → damaged park equipment, broken bench, unkempt public area
+   - "Other Issue" → any visible civic/public infrastructure problem
+   - PASS if: the image clearly shows a problem related to the category above
+   - FAIL if: the image shows something completely unrelated (e.g. a selfie, food, indoor scene, random object)
 
-3. RELEVANCE CHECK: Does it show a real civic issue matching: "${formData.category}"?
-   Must be a real photograph, not an illustration or rendering.
+Set passed to true ONLY if BOTH checks pass.
 
-Default to REJECTION when uncertain. Only pass images that are clearly genuine phone photographs of real civic issues.
-
-Respond ONLY with valid JSON (no markdown, no extra text):
+Respond ONLY with this exact JSON (no markdown, no extra text):
 {"passed":true,"blurCheck":true,"aiGeneratedCheck":true,"relevanceCheck":true,"failReason":"","confidence":"high"}
 
-Set passed to false and explain in failReason if anything is wrong.`;
+Note: always set aiGeneratedCheck to true (we are not checking for that).
+If passed is false, write a short friendly failReason explaining what is wrong.`;
 
     try {
       const rawText = await callGeminiVision({ prompt: verifyPrompt, base64Image: base64Data, mediaType });
@@ -631,10 +629,6 @@ Start with "This complaint pertains to..." and include the Tracking ID at the en
                     <div className="flex items-center gap-2">
                       <span>{verificationResult.blurCheck ? '✅' : '❌'}</span>
                       <span className={verificationResult.blurCheck ? 'text-gray-700' : 'text-red-600'}>Image clarity</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span>{verificationResult.aiGeneratedCheck ? '✅' : '❌'}</span>
-                      <span className={verificationResult.aiGeneratedCheck ? 'text-gray-700' : 'text-red-600'}>Not AI-generated</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <span>{verificationResult.relevanceCheck ? '✅' : '❌'}</span>
