@@ -515,14 +515,8 @@ Return ONLY JSON:
       }
     }
 
-    // 🔥 OPTIONAL SAFETY (recommended)
-    if (result.confidence === "low") {
-      result.passed = false;
-      result.failReason = "Low confidence in image verification. Please upload a clearer image.";
-    }
-
     // Debug (very useful during testing)
-    console.log("AI DETECTED:", result.detectedIssue);
+    console.log("Detected Issue:", result.detectedIssue);
 
     setVerificationResult(result);
     setAiVerifying(false);
