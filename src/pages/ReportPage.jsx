@@ -446,40 +446,21 @@ Ask ONE final short follow-up question (duration, danger, or exact spot).
   const mediaType  = file.type || 'image/jpeg';
 
   const verifyPrompt = `
-You are a STRICT civic complaint verification AI.
+You are a civic complaint image analyzer.
 
 User selected category: "${formData.category}"
 
-Your job is to REJECT incorrect images.
+Analyze the image and return JSON.
 
-Perform these checks:
-
-1. CLARITY CHECK:
-- PASS only if the issue is clearly visible
-- FAIL if blurry, dark, or unclear
-
-2. CATEGORY MATCH CHECK (VERY STRICT):
-- The image MUST EXACTLY match the selected category
-- If mismatch → FAIL immediately
-
-Category definitions:
-- Pothole / Road Damage → ONLY potholes, cracks, broken roads
-- Garbage Not Collected → ONLY garbage, trash, waste piles
-- Water Leakage / Sewer → ONLY water leaks, sewage, flooding
-- Broken Streetlight → ONLY damaged or non-working streetlights
-- Park / Public Space → ONLY park-related issues
-
-STRICT RULE:
-- If user selects "Pothole" and image shows "streetlight" → FAIL
+Rules:
+- Identify what the image shows
+- Check if it matches the category
 
 Return ONLY JSON:
 {
-  "passed": boolean,
-  "blurCheck": boolean,
-  "relevanceCheck": boolean,
-  "detectedIssue": "short description of what is seen",
-  "failReason": string,
-  "confidence": "high" | "medium" | "low"
+  "relevanceCheck": true/false,
+  "detectedIssue": "what is in the image",
+  "failReason": "if mismatch"
 }
 `;
 
@@ -490,38 +471,59 @@ Return ONLY JSON:
       mediaType
     });
 
-    const cleaned = rawText.replace(/```json|```/g, '').trim();
-
     let result;
+
     try {
+      const cleaned = rawText.replace(/```json|```/g, '').trim();
       result = JSON.parse(cleaned);
     } catch {
+      // 🔥 FALLBACK: extract meaning from text
+      const lower = rawText.toLowerCase();
+
       result = {
-        passed: false,
-        blurCheck: true,
-        relevanceCheck: false,
-        detectedIssue: "",
-        failReason: "Could not properly analyze the image.",
-        confidence: "low"
+        relevanceCheck: true,
+        detectedIssue: lower,
+        failReason: ""
       };
     }
 
-    // 🔥 TRUST AI OUTPUT (correct logic)
-    if (!result.relevanceCheck) {
-      result.passed = false;
+    // 🔥 SMART MATCHING (KEY FIX)
+    const category = formData.category.toLowerCase();
+    const detected = (result.detectedIssue || "").toLowerCase();
 
-      if (!result.failReason) {
-        result.failReason = "Image does not match the selected issue category.";
-      }
+    const matchMap = {
+      "pothole / road damage": ["pothole", "road", "crack"],
+      "garbage not collected": ["garbage", "trash", "waste"],
+      "water leakage / sewer": ["water", "leak", "sewage"],
+      "broken streetlight": ["light", "streetlight", "lamp"],
+      "park / public space": ["park", "plant", "bench", "tree"]
+    };
+
+    let isMatch = false;
+
+    if (matchMap[category]) {
+      isMatch = matchMap[category].some(word =>
+        detected.includes(word)
+      );
     }
 
-    // Debug (very useful during testing)
-    console.log("Detected Issue:", result.detectedIssue);
+    // FINAL DECISION
+    const passed = isMatch;
 
-    setVerificationResult(result);
+    console.log("Detected Issue:", detected);
+
+    const finalResult = {
+      passed,
+      relevanceCheck: passed,
+      failReason: passed
+        ? ""
+        : `This looks like "${detected}", which does not match "${formData.category}".`
+    };
+
+    setVerificationResult(finalResult);
     setAiVerifying(false);
 
-    if (result.passed) {
+    if (passed) {
       setFormData(prev => ({
         ...prev,
         imageVerified: true,
@@ -531,7 +533,7 @@ Return ONLY JSON:
       setStep(5);
 
       await addBotMessage(
-        "✅ Image verified successfully! Now please share your location so we can assign your complaint to the right ward officer."
+        "✅ Image verified successfully! Now please share your location."
       );
     } else {
       setStep(3);
@@ -539,27 +541,18 @@ Return ONLY JSON:
       if (fileInputRef.current) fileInputRef.current.value = '';
 
       await addBotMessage(
-        `❌ ${result.failReason} Please upload a correct image for the selected issue.`
+        `❌ ${finalResult.failReason} Please upload a correct image.`
       );
     }
 
   } catch (error) {
-    console.error("AI Verification Error:", error);
-
-    setVerificationResult({
-      passed: false,
-      blurCheck: false,
-      relevanceCheck: false,
-      detectedIssue: "",
-      failReason: "AI verification failed. Please upload a clearer image.",
-      confidence: "low"
-    });
+    console.error("AI Error:", error);
 
     setAiVerifying(false);
     setStep(3);
 
     await addBotMessage(
-      "⚠️ Couldn't verify image properly. Please upload a clearer and relevant photo."
+      "⚠️ Couldn't analyze image. Please try another one."
     );
   }
 };
