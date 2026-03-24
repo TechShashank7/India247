@@ -460,24 +460,24 @@ Perform these checks:
 
 2. CATEGORY MATCH CHECK (VERY STRICT):
 - The image MUST EXACTLY match the selected category
-- If even slightly different → FAIL
+- If mismatch → FAIL immediately
 
 Category definitions:
 - Pothole / Road Damage → ONLY potholes, cracks, broken roads
 - Garbage Not Collected → ONLY garbage, trash, waste piles
 - Water Leakage / Sewer → ONLY water leaks, sewage, flooding
 - Broken Streetlight → ONLY damaged or non-working streetlights
-- Park / Public Space → ONLY park-related issues (bench, plants, swings, etc.)
+- Park / Public Space → ONLY park-related issues
 
 STRICT RULE:
 - If user selects "Pothole" and image shows "streetlight" → FAIL
-- If mismatch → ALWAYS FAIL
 
 Return ONLY JSON:
 {
   "passed": boolean,
   "blurCheck": boolean,
   "relevanceCheck": boolean,
+  "detectedIssue": "short description of what is seen",
   "failReason": string,
   "confidence": "high" | "medium" | "low"
 }
@@ -500,38 +500,29 @@ Return ONLY JSON:
         passed: false,
         blurCheck: true,
         relevanceCheck: false,
-        failReason: "Could not verify image properly.",
+        detectedIssue: "",
+        failReason: "Could not properly analyze the image.",
         confidence: "low"
       };
     }
 
-    // 🔥 EXTRA SAFETY CHECK (VERY IMPORTANT)
-    const category = formData.category.toLowerCase();
-
-    const keywordMap = {
-      "pothole / road damage": ["pothole", "road", "crack"],
-      "garbage not collected": ["garbage", "trash", "waste"],
-      "water leakage / sewer": ["water", "leak", "sewage"],
-      "broken streetlight": ["light", "streetlight", "lamp"],
-      "park / public space": ["park", "bench", "plant", "swing"]
-    };
-
-    const detectedText = rawText.toLowerCase();
-
-    let keywordMatch = false;
-
-    if (keywordMap[category]) {
-      keywordMatch = keywordMap[category].some(word =>
-        detectedText.includes(word)
-      );
-    }
-
-    // Override if mismatch
-    if (!keywordMatch) {
+    // 🔥 TRUST AI OUTPUT (correct logic)
+    if (!result.relevanceCheck) {
       result.passed = false;
-      result.relevanceCheck = false;
-      result.failReason = "Image does not match the selected issue category.";
+
+      if (!result.failReason) {
+        result.failReason = "Image does not match the selected issue category.";
+      }
     }
+
+    // 🔥 OPTIONAL SAFETY (recommended)
+    if (result.confidence === "low") {
+      result.passed = false;
+      result.failReason = "Low confidence in image verification. Please upload a clearer image.";
+    }
+
+    // Debug (very useful during testing)
+    console.log("AI DETECTED:", result.detectedIssue);
 
     setVerificationResult(result);
     setAiVerifying(false);
@@ -565,6 +556,7 @@ Return ONLY JSON:
       passed: false,
       blurCheck: false,
       relevanceCheck: false,
+      detectedIssue: "",
       failReason: "AI verification failed. Please upload a clearer image.",
       confidence: "low"
     });
