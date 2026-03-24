@@ -39,7 +39,7 @@ Building a modern, responsive, premium frontend for India247 — a civic complai
 ### Phase 5: Feature Additions
 - Added a floating glassmorphism AI Assistant widget (Meera) to the Landing Page with custom hover tooltips, animated floating states, and an initial greeting conversation element.
 
-### Phase 6: API Integration
+### Phase 6: API Integration for Report Issue Page
 - Switched from Claude API to Gemini API (billing enabled now)
 - Model: gemini-2.5-flash-lite for text conversation and gemini-2.5-flash for vision
 - Secured Gemini and Google Maps API keys via `.env` file (`VITE_GEMINI_API_KEY`, `VITE_GOOGLE_MAPS_API_KEY`) to prevent exposure during Git push.

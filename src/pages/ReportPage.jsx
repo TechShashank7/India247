@@ -438,68 +438,145 @@ Ask ONE final short follow-up question (duration, danger, or exact spot).
 
   // ── STEP 4: Image verification ────────────────────────────────────────────
   const handleAIVerification = async (file, dataUrl) => {
-    setStep(4);
-    setAiVerifying(true);
-    setVerificationResult(null);
+  setStep(4);
+  setAiVerifying(true);
+  setVerificationResult(null);
 
-    const base64Data = dataUrl.split(',')[1];
-    const mediaType  = file.type || 'image/jpeg';
+  const base64Data = dataUrl.split(',')[1];
+  const mediaType  = file.type || 'image/jpeg';
 
-    const verifyPrompt = `You are an image verification AI for a civic complaint platform in India.
+  const verifyPrompt = `
+You are a STRICT civic complaint verification AI.
 
-Analyze this image for exactly TWO checks:
+User selected category: "${formData.category}"
 
-1. CLARITY CHECK (blurCheck): Is the image clear enough for a municipal officer to identify the issue?
-   - PASS if: the main subject is visible and identifiable
-   - FAIL if: the image is too blurry, too dark, heavily pixelated, or the issue cannot be seen at all
+Your job is to REJECT incorrect images.
 
-2. RELEVANCE CHECK (relevanceCheck): Does this image actually show a civic issue related to the category "${formData.category}"?
-   Category descriptions:
-   - "Pothole / Road Damage" → damaged road surface, cracks, potholes, broken pavement
-   - "Garbage Not Collected" → garbage pile, overflowing bin, waste on street
-   - "Water Leakage / Sewer" → water leak, flooded road, broken pipe, open drain, sewage
-   - "Broken Streetlight" → broken or missing streetlight, damaged light pole
-   - "Park / Public Space" → damaged park equipment, broken bench, unkempt public area
-   - "Other Issue" → any visible civic/public infrastructure problem
-   - PASS if: the image clearly shows a problem related to the category above
-   - FAIL if: the image shows something completely unrelated (e.g. a selfie, food, indoor scene, random object)
+Perform these checks:
 
-Set passed to true ONLY if BOTH checks pass.
+1. CLARITY CHECK:
+- PASS only if the issue is clearly visible
+- FAIL if blurry, dark, or unclear
 
-Respond ONLY with this exact JSON (no markdown, no extra text):
-{"passed":true,"blurCheck":true,"aiGeneratedCheck":true,"relevanceCheck":true,"failReason":"","confidence":"high"}
+2. CATEGORY MATCH CHECK (VERY STRICT):
+- The image MUST EXACTLY match the selected category
+- If even slightly different → FAIL
 
-Note: always set aiGeneratedCheck to true (we are not checking for that).
-If passed is false, write a short friendly failReason explaining what is wrong.`;
+Category definitions:
+- Pothole / Road Damage → ONLY potholes, cracks, broken roads
+- Garbage Not Collected → ONLY garbage, trash, waste piles
+- Water Leakage / Sewer → ONLY water leaks, sewage, flooding
+- Broken Streetlight → ONLY damaged or non-working streetlights
+- Park / Public Space → ONLY park-related issues (bench, plants, swings, etc.)
 
+STRICT RULE:
+- If user selects "Pothole" and image shows "streetlight" → FAIL
+- If mismatch → ALWAYS FAIL
+
+Return ONLY JSON:
+{
+  "passed": boolean,
+  "blurCheck": boolean,
+  "relevanceCheck": boolean,
+  "failReason": string,
+  "confidence": "high" | "medium" | "low"
+}
+`;
+
+  try {
+    const rawText = await callGeminiVision({
+      prompt: verifyPrompt,
+      base64Image: base64Data,
+      mediaType
+    });
+
+    const cleaned = rawText.replace(/```json|```/g, '').trim();
+
+    let result;
     try {
-      const rawText = await callGeminiVision({ prompt: verifyPrompt, base64Image: base64Data, mediaType });
-      const cleaned = rawText.replace(/```json|```/g, '').trim();
-      let result;
-      try { result = JSON.parse(cleaned); }
-      catch { result = { passed: true, blurCheck: true, aiGeneratedCheck: true, relevanceCheck: true, failReason: '', confidence: 'medium' }; }
-
-      setVerificationResult(result);
-      setAiVerifying(false);
-
-      if (result.passed) {
-        setFormData(prev => ({ ...prev, imageVerified: true, imageData: dataUrl }));
-        setStep(5);
-        await addBotMessage(`✅ Image verified successfully! Now please share your location so we can assign your complaint to the right ward officer.`);
-      } else {
-        setStep(3);
-        if (fileInputRef.current) fileInputRef.current.value = '';
-        await addBotMessage(`⚠️ Image verification failed. ${result.failReason} Please upload a real photo of the issue.`);
-      }
+      result = JSON.parse(cleaned);
     } catch {
-      // On API error be lenient — pass the image
-      setVerificationResult({ passed: true, blurCheck: true, aiGeneratedCheck: true, relevanceCheck: true, failReason: '', confidence: 'low' });
-      setAiVerifying(false);
-      setFormData(prev => ({ ...prev, imageVerified: true, imageData: dataUrl }));
-      setStep(5);
-      await addBotMessage(`✅ Photo received! Now please share your location so we can assign your complaint correctly.`);
+      result = {
+        passed: false,
+        blurCheck: true,
+        relevanceCheck: false,
+        failReason: "Could not verify image properly.",
+        confidence: "low"
+      };
     }
-  };
+
+    // 🔥 EXTRA SAFETY CHECK (VERY IMPORTANT)
+    const category = formData.category.toLowerCase();
+
+    const keywordMap = {
+      "pothole / road damage": ["pothole", "road", "crack"],
+      "garbage not collected": ["garbage", "trash", "waste"],
+      "water leakage / sewer": ["water", "leak", "sewage"],
+      "broken streetlight": ["light", "streetlight", "lamp"],
+      "park / public space": ["park", "bench", "plant", "swing"]
+    };
+
+    const detectedText = rawText.toLowerCase();
+
+    let keywordMatch = false;
+
+    if (keywordMap[category]) {
+      keywordMatch = keywordMap[category].some(word =>
+        detectedText.includes(word)
+      );
+    }
+
+    // Override if mismatch
+    if (!keywordMatch) {
+      result.passed = false;
+      result.relevanceCheck = false;
+      result.failReason = "Image does not match the selected issue category.";
+    }
+
+    setVerificationResult(result);
+    setAiVerifying(false);
+
+    if (result.passed) {
+      setFormData(prev => ({
+        ...prev,
+        imageVerified: true,
+        imageData: dataUrl
+      }));
+
+      setStep(5);
+
+      await addBotMessage(
+        "✅ Image verified successfully! Now please share your location so we can assign your complaint to the right ward officer."
+      );
+    } else {
+      setStep(3);
+
+      if (fileInputRef.current) fileInputRef.current.value = '';
+
+      await addBotMessage(
+        `❌ ${result.failReason} Please upload a correct image for the selected issue.`
+      );
+    }
+
+  } catch (error) {
+    console.error("AI Verification Error:", error);
+
+    setVerificationResult({
+      passed: false,
+      blurCheck: false,
+      relevanceCheck: false,
+      failReason: "AI verification failed. Please upload a clearer image.",
+      confidence: "low"
+    });
+
+    setAiVerifying(false);
+    setStep(3);
+
+    await addBotMessage(
+      "⚠️ Couldn't verify image properly. Please upload a clearer and relevant photo."
+    );
+  }
+};
 
   // ── STEP 5 ─────────────────────────────────────────────────────────────────
   const handleLocationConfirmed = async (address) => {
