@@ -158,7 +158,7 @@ async function callGeminiVision({ prompt, base64Image, mediaType }) {
           { text: prompt },
         ],
       }],
-      generationConfig: { maxOutputTokens: 500, temperature: 0.1 },
+      generationConfig: { maxOutputTokens: 1000, temperature: 0.1 },
     }),
   });
   const data = await res.json();
@@ -528,8 +528,28 @@ Respond ONLY with this exact JSON (no markdown, no extra text):
       const rawText = await callGeminiVision({ prompt: verifyPrompt, base64Image: base64Data, mediaType });
       const cleaned = rawText.replace(/```json|```/g, '').trim();
       let result;
-      try { result = JSON.parse(cleaned); }
-      catch { result = { passed: true, blurCheck: true, relevanceCheck: true, whatISee: '', failReason: '', confidence: 'medium' }; }
+      try {
+        result = JSON.parse(cleaned);
+        // Enforce: passed must be true only if BOTH checks pass
+        result.passed = result.blurCheck === true && result.relevanceCheck === true;
+      } catch {
+        // fallback using raw text instead of blind rejection
+        const lower = cleaned.toLowerCase();
+
+        result = {
+          blurCheck: true,
+          relevanceCheck: !(
+            lower.includes("logo") ||
+            lower.includes("selfie") ||
+            lower.includes("indoor")
+          ),
+          whatISee: cleaned,
+          failReason: "Could not fully verify, but attempting fallback.",
+          confidence: "low"
+        };
+
+        result.passed = result.relevanceCheck;
+      }
 
       setVerificationResult(result);
       setAiVerifying(false);
