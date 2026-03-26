@@ -1,8 +1,26 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import ComplaintCard from '../components/ComplaintCard';
-import { mockComplaints, citizens } from '../data/mockData';
+import { citizens } from '../data/mockData';
 
 const FeedPage = () => {
+  const [complaints, setComplaints] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchComplaints = async () => {
+      try {
+        const res = await axios.get('http://localhost:5000/api/complaints');
+        setComplaints(res.data);
+      } catch (error) {
+        console.error('Error fetching complaints:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchComplaints();
+  }, []);
+
   return (
     <div className="pt-24 pb-12 min-h-screen bg-background">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -28,11 +46,17 @@ const FeedPage = () => {
               </div>
             </div>
 
-            <div className="space-y-6">
-              {mockComplaints.map(complaint => (
-                <ComplaintCard key={complaint.id} complaint={complaint} />
-              ))}
-            </div>
+            {loading ? (
+              <div className="flex justify-center py-12">
+                <div className="animate-spin text-saffron w-8 h-8 border-4 border-current border-t-transparent rounded-full"></div>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {complaints.map(complaint => (
+                  <ComplaintCard key={complaint._id || complaint.id} complaint={complaint} />
+                ))}
+              </div>
+            )}
             
             <div className="mt-8 text-center">
               <button className="btn-outline">
@@ -50,8 +74,8 @@ const FeedPage = () => {
                 <span className="text-saffron">🔥</span> Trending Issues
               </h2>
               <div className="space-y-4">
-                {mockComplaints.sort((a,b) => b.upvotes - a.upvotes).slice(0, 3).map((issue, i) => (
-                  <div key={issue.id} className="flex gap-4 items-start group cursor-pointer hover:bg-gray-50 p-2 -mx-2 rounded-lg transition-colors">
+                {[...complaints].sort((a,b) => b.upvotes - a.upvotes).slice(0, 3).map((issue, i) => (
+                  <div key={issue._id || issue.id} className="flex gap-4 items-start group cursor-pointer hover:bg-gray-50 p-2 -mx-2 rounded-lg transition-colors">
                     <div className="text-2xl font-black text-gray-200 group-hover:text-saffron transition-colors">#{i+1}</div>
                     <div>
                       <h4 className="font-semibold text-gray-800 text-sm leading-tight mb-1">{issue.title}</h4>

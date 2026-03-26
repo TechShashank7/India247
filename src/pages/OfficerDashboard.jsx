@@ -1,11 +1,46 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { Target, AlertTriangle, Clock, CheckCircle, Star } from 'lucide-react';
-import { mockComplaints } from '../data/mockData';
 import StatusBadge from '../components/StatusBadge';
 
 const OfficerDashboard = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [complaints, setComplaints] = useState([]);
+  const [loading, setLoading] = useState(false);
   
+  const fetchComplaints = async () => {
+    setLoading(true);
+    try {
+      const res = await axios.get('http://localhost:5000/api/complaints');
+      setComplaints(res.data);
+    } catch (err) {
+      console.error('Error fetching complaints:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isLoggedIn) fetchComplaints();
+  }, [isLoggedIn]);
+
+  const updateStatus = async (id, newStatus) => {
+    if (newStatus.includes('Update Status')) return;
+    const cleanStatus = newStatus.replace(' ✅', '').replace('Mark Resolved', 'Resolved').trim();
+    
+    let submitStatus = cleanStatus;
+    if (cleanStatus === 'Accept Issue') {
+      submitStatus = 'Assigned';
+    }
+    
+    try {
+      await axios.put(`http://localhost:5000/api/complaints/${id}/status`, { status: submitStatus });
+      fetchComplaints();
+    } catch (err) {
+      console.error('Error updating status:', err);
+    }
+  };
+
   if (!isLoggedIn) {
     return (
       <div className="min-h-screen bg-navy flex items-center justify-center p-4">
@@ -36,9 +71,9 @@ const OfficerDashboard = () => {
     );
   }
 
-  const pending = mockComplaints.filter(c => c.status === 'Pending').length;
-  const inProgress = mockComplaints.filter(c => c.status === 'In Progress' || c.status === 'Under Inspection' || c.status === 'Assigned').length;
-  const resolved = mockComplaints.filter(c => c.status === 'Resolved').length;
+  const pending = complaints.filter(c => c.status === 'Pending').length;
+  const inProgress = complaints.filter(c => c.status === 'In Progress' || c.status === 'Under Inspection' || c.status === 'Assigned').length;
+  const resolved = complaints.filter(c => c.status === 'Resolved').length;
 
   return (
     <div className="min-h-screen bg-gray-50 pt-20 pb-12">
@@ -105,46 +140,62 @@ const OfficerDashboard = () => {
             </div>
             
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-gray-50/50 text-xs uppercase tracking-wider text-gray-500 font-bold">
-                    <th className="p-4 border-b border-gray-100">ID</th>
-                    <th className="p-4 border-b border-gray-100">Category</th>
-                    <th className="p-4 border-b border-gray-100">Location</th>
-                    <th className="p-4 border-b border-gray-100">Status</th>
-                    <th className="p-4 border-b border-gray-100">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="text-sm divide-y divide-gray-50">
-                  {mockComplaints.slice(0, 6).map((c) => (
-                    <tr key={c.id} className="hover:bg-gray-50/80 transition-colors group">
-                      <td className="p-4 font-mono font-bold text-navy">{c.id}</td>
-                      <td className="p-4 font-semibold text-gray-700">{c.category}</td>
-                      <td className="p-4 text-gray-500 truncate max-w-[150px]">{c.location}</td>
-                      <td className="p-4 whitespace-nowrap"><StatusBadge status={c.status} /></td>
-                      <td className="p-4">
-                        {c.status === 'Pending' ? (
-                          <button className="bg-blue-50 text-blue-600 hover:bg-blue-100 font-bold px-3 py-1.5 rounded-lg text-xs transition-colors">
-                            Accept Issue
-                          </button>
-                        ) : c.status !== 'Resolved' ? (
-                          <select className="bg-gray-100 text-gray-700 font-semibold px-2 py-1.5 rounded-lg text-xs outline-none border border-transparent focus:border-gray-300 cursor-pointer">
-                            <option>Update Status...</option>
-                            <option>Assigned</option>
-                            <option>Under Inspection</option>
-                            <option>Mark Resolved ✅</option>
-                          </select>
-                        ) : (
-                          <span className="text-india-green font-bold text-xs bg-green-50 px-3 py-1.5 rounded-lg inline-block">Closed</span>
-                        )}
-                      </td>
+              {loading ? (
+                <div className="flex justify-center py-12">
+                  <div className="animate-spin text-saffron w-8 h-8 border-4 border-current border-t-transparent rounded-full"></div>
+                </div>
+              ) : (
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-gray-50/50 text-xs uppercase tracking-wider text-gray-500 font-bold">
+                      <th className="p-4 border-b border-gray-100">ID</th>
+                      <th className="p-4 border-b border-gray-100">Category</th>
+                      <th className="p-4 border-b border-gray-100">Location</th>
+                      <th className="p-4 border-b border-gray-100">Status</th>
+                      <th className="p-4 border-b border-gray-100">Action</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="text-sm divide-y divide-gray-50">
+                    {complaints.length === 0 ? (
+                      <tr>
+                        <td colSpan="5" className="p-4 text-center text-gray-500 py-8">No complaints found.</td>
+                      </tr>
+                    ) : (
+                      complaints.slice(0, 10).map((c) => (
+                        <tr key={c._id || c.id} className="hover:bg-gray-50/80 transition-colors group">
+                          <td className="p-4 font-mono font-bold text-navy truncate max-w-[100px]" title={c._id}>{String(c._id).slice(-6)}</td>
+                          <td className="p-4 font-semibold text-gray-700">{c.category || 'Issue'}</td>
+                          <td className="p-4 text-gray-500 truncate max-w-[150px]">{c.location}</td>
+                          <td className="p-4 whitespace-nowrap"><StatusBadge status={c.status} /></td>
+                          <td className="p-4">
+                            {c.status === 'Pending' ? (
+                              <button onClick={() => updateStatus(c._id, 'Accept Issue')} className="bg-blue-50 text-blue-600 hover:bg-blue-100 font-bold px-3 py-1.5 rounded-lg text-xs transition-colors">
+                                Accept Issue
+                              </button>
+                            ) : c.status !== 'Resolved' ? (
+                              <select 
+                                onChange={(e) => updateStatus(c._id, e.target.value)}
+                                className="bg-gray-100 text-gray-700 font-semibold px-2 py-1.5 rounded-lg text-xs outline-none border border-transparent focus:border-gray-300 cursor-pointer"
+                                defaultValue="Update Status..."
+                              >
+                                <option disabled>Update Status...</option>
+                                <option>Assigned</option>
+                                <option>Under Inspection</option>
+                                <option>Mark Resolved ✅</option>
+                              </select>
+                            ) : (
+                              <span className="text-india-green font-bold text-xs bg-green-50 px-3 py-1.5 rounded-lg inline-block">Closed</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              )}
             </div>
             <div className="p-4 border-t border-gray-100 text-center">
-              <button className="font-semibold text-saffron text-sm hover:underline">View All 42 Assigned Complaints</button>
+              <button className="font-semibold text-saffron text-sm hover:underline">View All {complaints.length} Assigned Complaints</button>
             </div>
           </div>
 

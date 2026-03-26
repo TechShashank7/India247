@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Camera, Send, MapPin, Loader } from 'lucide-react';
+import axios from 'axios';
 import ChatBubble from '../components/ChatBubble';
 
 // ─── API KEYS ────────────────────────────────────────────────────────────────
@@ -75,8 +76,24 @@ Your job is to help citizens report CIVIC issues only. Civic issues include:
 CONVERSATION FLOW:
 1. The first message in the conversation is already sent. Do NOT greet or re-introduce yourself in any subsequent message. Never say "Namaste", "Hi", "Hello", "I'm Meera" again after the first turn.
 2. Ask follow-up questions naturally to gather: exact location/area, severity, how long the issue has existed, any safety risk. Ask EXACTLY ONE question per message. Never combine two questions in the same message.
-3. IMPORTANT: Only emit [READY_FOR_PHOTO] AFTER the user has answered your last question. Never emit [READY_FOR_PHOTO] in the same message where you are still asking the user a question. The flow must be: ask question → wait for answer → ask next question → wait for answer → THEN emit [READY_FOR_PHOTO].
-4. When you have gathered enough details (usually after 2-4 user replies), send ONE final acknowledgement message that ends with [READY_FOR_PHOTO] and a short request to upload a photo. Do not ask any more questions in this message.
+3. IMPORTANT: Only emit [READY_FOR_PHOTO] AFTER the user has answered your last question.
+
+STRICT RULE:
+- If your message contains ANY question (even polite ones like "could you", "can you", "kya aap", etc.), DO NOT include [READY_FOR_PHOTO].
+- The final message must be a statement, NOT a question.
+
+4. When you have gathered enough details (usually after 2-4 user replies), send ONE final acknowledgement message requesting a photo.
+
+The final message MUST:
+- NOT contain any question
+- Be a clear instruction (e.g., "Please upload a photo of the issue.")
+- End with [READY_FOR_PHOTO]
+
+Correct example:
+"Thanks for the details. Please upload a photo of the issue so I can proceed. [READY_FOR_PHOTO]"
+
+Incorrect example (DO NOT DO THIS):
+"Could you please upload a photo? [READY_FOR_PHOTO]"
 5. Never mention "[READY_FOR_PHOTO]" explicitly to the user — it's a hidden signal.
 
 CATEGORY DETECTION:
@@ -99,7 +116,13 @@ Then end with: [OUT_OF_SCOPE] on its own line.
 
 TONE: Warm, simple, friendly. Use 1 emoji per message max. Keep responses SHORT — 1-3 sentences. Remember many users may not be very tech-savvy. Do not use jargon.
 
-LANGUAGE: Respond in the same language the user writes in. If they mix Hindi and English, do the same naturally.`;
+LANGUAGE:
+* Detect the user's language automatically
+* If English → reply in English
+* If Hinglish → reply in Hinglish
+* If Hindi → reply in Hindi (Devanagari)
+* Always mirror user's style naturally
+* Do NOT default to English`;
 
 // ─── Retry helper ────────────────────────────────────────────────────────────
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
@@ -117,21 +140,15 @@ async function fetchWithRetry(url, options, retries = 3) {
 }
 
 // ─── Gemini text helper ───────────────────────────────────────────────────────
-async function callGemini(conversationHistory, plainMode = false) {
-  let fullPrompt;
+async function callGemini({ messages }) {
+  const systemMsg = messages.find(m => m.role === 'system');
+  const chatMsgs = messages.filter(m => m.role !== 'system');
 
-  if (plainMode) {
-    // For plain document generation — no Meera persona, just the task
-    fullPrompt = conversationHistory
-      .map(m => m.content)
-      .join('\n');
-  } else {
-    // Normal conversational mode with Meera system prompt
-    const historyText = conversationHistory
-      .map(m => `${m.role === 'user' ? 'User' : 'Meera'}: ${m.content}`)
-      .join('\n');
-    fullPrompt = `${MEERA_SYSTEM_PROMPT}\n\n--- CONVERSATION ---\n${historyText}\nMeera:`;
-  }
+  const historyText = chatMsgs
+    .map(m => `${m.role === 'user' ? 'User' : 'Meera'}: ${m.content}`)
+    .join('\n');
+
+  const fullPrompt = `${systemMsg ? systemMsg.content : MEERA_SYSTEM_PROMPT}\n\n--- CONVERSATION ---\n${historyText}\nMeera:`;
 
   const res = await fetchWithRetry(GEMINI_URL, {
     method: 'POST',
@@ -228,6 +245,8 @@ const LocationPicker = ({ onLocationConfirmed }) => {
   const markerRef                = useRef(null);
   const autocompleteContainerRef = useRef(null);
   const addressRef               = useRef('');
+  const latRef                   = useRef(null);
+  const lngRef                   = useRef(null);
 
   const [address,  setAddress]  = useState('');
   const [loading,  setLoading]  = useState(true);
@@ -270,6 +289,8 @@ const LocationPicker = ({ onLocationConfirmed }) => {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const position = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        latRef.current = position.lat;
+        lngRef.current = position.lng;
         mapInstanceRef.current?.setZoom(16);
         if (markerRef._AME) placeMarkerAdv(position, markerRef._AME);
         reverseGeocode(position.lat, position.lng);
@@ -297,8 +318,12 @@ const LocationPicker = ({ onLocationConfirmed }) => {
       });
 
       mapInstanceRef.current.addListener('click', (e) => {
-        placeMarkerAdv({ lat: e.latLng.lat(), lng: e.latLng.lng() }, AdvancedMarkerElement);
-        reverseGeocode(e.latLng.lat(), e.latLng.lng());
+        const lat = e.latLng.lat();
+        const lng = e.latLng.lng();
+        latRef.current = lat;
+        lngRef.current = lng;
+        placeMarkerAdv({ lat, lng }, AdvancedMarkerElement);
+        reverseGeocode(lat, lng);
       });
 
       const placeAutocomplete = new PlaceAutocompleteElement({ includedRegionCodes: ['in'] });
@@ -314,6 +339,8 @@ const LocationPicker = ({ onLocationConfirmed }) => {
         await place.fetchFields({ fields: ['formattedAddress', 'location'] });
         const lat = place.location.lat();
         const lng = place.location.lng();
+        latRef.current = lat;
+        lngRef.current = lng;
         placeMarkerAdv({ lat, lng }, AdvancedMarkerElement);
         mapInstanceRef.current.setZoom(16);
         addressRef.current = place.formattedAddress;
@@ -354,7 +381,11 @@ const LocationPicker = ({ onLocationConfirmed }) => {
           onClick={() => {
             const val = addressRef.current || address;
             if (!val) return alert('Please select a location first.');
-            onLocationConfirmed(val);
+            onLocationConfirmed({
+              address: val,
+              lat: latRef.current,
+              lng: lngRef.current
+            });
           }}
           className={`flex-1 flex items-center justify-center gap-2 rounded-xl px-4 py-3 font-semibold transition-colors ${
             address
@@ -379,6 +410,8 @@ const STEPS = [
 ];
 
 // ─── Main ReportPage ──────────────────────────────────────────────────────────
+const generateTrackingId = () => `IND-2026-${Math.floor(10000 + Math.random() * 90000)}`;
+
 const ReportPage = () => {
   const navigate = useNavigate();
 
@@ -401,7 +434,7 @@ const ReportPage = () => {
   const [issueSummary,       setIssueSummary]       = useState('');   // built from conversation
   const [formData,           setFormData]           = useState({});
   const [complaintSummary,   setComplaintSummary]   = useState('');
-  const [trackingId]                                = useState(`IND-2026-${Math.floor(10000 + Math.random() * 90000)}`);
+  const [trackingId,         setTrackingId]         = useState(generateTrackingId());
 
   // ── Refs
   const messagesEndRef   = useRef(null);
@@ -445,11 +478,27 @@ const ReportPage = () => {
 
     setInputText('');
     setMessages(prev => [...prev, { isBot: false, text }]);
-    conversationRef.current.push({ role: 'user', content: text });
 
     setIsTyping(true);
     try {
-      const rawReply = await callGemini(conversationRef.current);
+      const rawReply = await callGemini({
+        messages: [
+          {
+            role: "system",
+            content: MEERA_SYSTEM_PROMPT
+          },
+          ...conversationRef.current.map(msg => ({
+            role: msg.role === "user" ? "user" : "assistant",
+            content: msg.content
+          })),
+          {
+            role: "user",
+            content: text
+          }
+        ]
+      });
+      
+      conversationRef.current.push({ role: 'user', content: text });
       const { cleanText, readyForPhoto, outOfScope, detectedCategory: cat } = parseAIResponse(rawReply);
 
       // Store AI turn in history (clean text only)
@@ -479,26 +528,46 @@ const ReportPage = () => {
   };
 
   // ── STEP 2: Photo upload ──────────────────────────────────────────────────
-  const handlePhotoUpload = (e) => {
+  const handlePhotoUpload = async (e) => {
     if (!e.target.files || e.target.files.length === 0) return;
     const file = e.target.files[0];
     setUploadingImage(true);
-    const reader = new FileReader();
-    reader.onloadend = () => {
+
+    try {
+      const data = new FormData();
+      data.append("file", file);
+      data.append("upload_preset", "India247");
+
+      const res = await fetch("https://api.cloudinary.com/v1_1/dpnupufqv/image/upload", {
+        method: "POST",
+        body: data
+      });
+
+      const cloudinaryData = await res.json();
+      const imageUrl = cloudinaryData.secure_url;
+
+      const previewUrl = URL.createObjectURL(file);
+      
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setUploadingImage(false);
+        setMessages(prev => [...prev, { isBot: false, text: '📸 Photo uploaded', isImage: true, imageUrl: previewUrl }]);
+        handleAIVerification(file, imageUrl, reader.result);
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error("Cloudinary upload failed", err);
       setUploadingImage(false);
-      setMessages(prev => [...prev, { isBot: false, text: '📸 Photo uploaded', isImage: true, imageUrl: reader.result }]);
-      handleAIVerification(file, reader.result);
-    };
-    reader.readAsDataURL(file);
+    }
   };
 
   // ── STEP 3: AI image verification ────────────────────────────────────────
-  const handleAIVerification = async (file, dataUrl) => {
+  const handleAIVerification = async (file, imageUrl, base64FullDataUrl) => {
     setStep(3);
     setAiVerifying(true);
     setVerificationResult(null);
 
-    const base64Data = dataUrl.split(',')[1];
+    const base64Data = base64FullDataUrl.split(',')[1];
     const mediaType  = file.type || 'image/jpeg';
 
     // Build a rich prompt using the actual conversation
@@ -555,7 +624,7 @@ Respond ONLY with this exact JSON (no markdown, no extra text):
       setAiVerifying(false);
 
       if (result.passed) {
-        setFormData(prev => ({ ...prev, imageVerified: true, imageData: dataUrl }));
+        setFormData(prev => ({ ...prev, imageVerified: true, imageData: imageUrl }));
         setStep(4);
         await addBotMessage(`✅ Image verified! Now please share your location so I can assign your complaint to the right officer.`);
       } else {
@@ -577,23 +646,43 @@ Respond ONLY with this exact JSON (no markdown, no extra text):
       // On API error, be lenient
       setVerificationResult({ passed: true, blurCheck: true, relevanceCheck: true, whatISee: '', failReason: '', confidence: 'low' });
       setAiVerifying(false);
-      setFormData(prev => ({ ...prev, imageVerified: true, imageData: dataUrl }));
+      setFormData(prev => ({ ...prev, imageVerified: true, imageData: imageUrl }));
       setStep(4);
       await addBotMessage(`✅ Photo received! Now please share your location so I can route your complaint correctly.`);
     }
   };
 
   // ── STEP 4: Location confirmed ────────────────────────────────────────────
-  const handleLocationConfirmed = async (address) => {
-    setFormData(prev => ({ ...prev, location: address }));
+  const handleLocationConfirmed = async ({ address, lat, lng }) => {
+    setFormData(prev => ({ ...prev, location: address, lat, lng }));
     setMessages(prev => [...prev, { isBot: false, text: `📍 ${address}` }]);
     setStep(5);
     await addBotMessage("Almost done! Would you like to keep your identity anonymous? Your complaint will still be filed and tracked fully. 🔒");
   };
 
+  const resetAllState = () => {
+    conversationRef.current = [];
+    setFormData({});
+    setDetectedCategory(null);
+    setIssueSummary('');
+    setMessages([
+      { isBot: true, text: "Namaste! 🙏 I'm Meera, your India247 assistant. What civic issue are you facing today?" }
+    ]);
+    setStep(1);
+  };
+
   // ── STEP 5 → 6: Anonymous choice & submit ────────────────────────────────
   const handleAnonymousSubmit = async (isAnonymous) => {
+    const currentTrackingId = generateTrackingId();
+    setTrackingId(currentTrackingId);
+
     setMessages(prev => [...prev, { isBot: false, text: isAnonymous ? '🔒 Yes, keep me anonymous' : '👤 No, use my name' }]);
+    
+    // Capture state early before reset
+    const currentLoc = formData.location;
+    const currentImg = formData.imageData;
+    const currentCat = detectedCategory;
+
     setFormData(prev => ({ ...prev, anonymous: isAnonymous }));
     setStep(6);
     setIsTyping(true);
@@ -606,19 +695,34 @@ Respond ONLY with this exact JSON (no markdown, no extra text):
 
     const summaryPrompt = `You are a formal document writer for Indian municipal authorities. Write a civic complaint summary.
 
-Issue category: ${detectedCategory?.name || 'Civic Issue'}
-Assigned department: ${detectedCategory?.dept || 'Municipal Corporation'}
+Issue category: ${currentCat?.name || 'Civic Issue'}
+Assigned department: ${currentCat?.dept || 'Municipal Corporation'}
 Citizen's description: ${conversationText}
-Location: ${formData.location || 'Not specified'}
+Location: ${currentLoc || 'Not specified'}
 Anonymous filing: ${isAnonymous ? 'Yes' : 'No'}
-Tracking ID: ${trackingId}
+Tracking ID: ${currentTrackingId}
 
 Write ONLY a concise formal complaint in third-person, 3-4 sentences, for a municipal officer to read.
-Start with exactly "This complaint pertains to..." and end with "Tracking ID: ${trackingId}".
+Start with exactly "This complaint pertains to..." and end with "Tracking ID: ${currentTrackingId}".
 Output the complaint text only. No greetings, no preamble, no sign-off, no markdown.`;
 
     try {
-      const rawReply = await callGemini([{ role: 'user', content: summaryPrompt }], true);
+      const rawReply = await callGemini({
+        messages: [
+          {
+            role: "system",
+            content: MEERA_SYSTEM_PROMPT
+          },
+          ...conversationRef.current.map(msg => ({
+            role: msg.role === "user" ? "user" : "assistant",
+            content: msg.content
+          })),
+          {
+            role: "user",
+            content: summaryPrompt
+          }
+        ]
+      });
       // Strip any hidden markers and also strip any accidental Meera greeting lines
       let { cleanText } = parseAIResponse(rawReply);
       // Safety net: if Gemini still prepended a greeting line, remove it
@@ -627,11 +731,59 @@ Output the complaint text only. No greetings, no preamble, no sign-off, no markd
         .replace(/^(How can I help[^.]*\.)\s*/i, '')
         .trim();
       setComplaintSummary(cleanText);
+
+      try {
+        if (!cleanText || !currentLoc) {
+          console.error("❌ Missing required fields", { cleanText, currentLoc });
+          return;
+        }
+
+        const payload = {
+          title: currentCat?.name || 'Civic Issue',
+          category: currentCat?.dept || 'Municipal Corporation',
+          description: cleanText,
+          location: currentLoc || 'Not specified',
+          lat: formData.lat,
+          lng: formData.lng,
+          imageUrl: currentImg || null,
+          status: 'Pending'
+        };
+        console.log("Submitting complaint...");
+        console.log("Payload:", payload);
+        const response = await axios.post('http://localhost:5000/api/complaints', payload);
+        console.log("Complaint saved:", response.data);
+
+      } catch (err) {
+        console.error('❌ Error saving complaint:', err.response?.data || err.message);
+      }
+
       setIsTyping(false);
       setMessages(prev => [...prev, { isBot: true, text: "🎉 Your complaint has been successfully filed! Here's your official summary:" }]);
     } catch {
       setIsTyping(false);
-      setComplaintSummary(`This complaint pertains to a ${detectedCategory?.name || 'civic'} issue reported at ${formData.location}. The matter has been forwarded to the ${detectedCategory?.dept || 'Municipal Corporation'} for resolution. Tracking ID: ${trackingId}.`);
+      const fallbackSummary = `This complaint pertains to a ${currentCat?.name || 'civic'} issue reported at ${currentLoc}. The matter has been forwarded to the ${currentCat?.dept || 'Municipal Corporation'} for resolution. Tracking ID: ${currentTrackingId}.`;
+      setComplaintSummary(fallbackSummary);
+      
+      try {
+        const payload = {
+          title: currentCat?.name || 'Civic Issue',
+          category: currentCat?.dept || 'Municipal Corporation',
+          description: fallbackSummary,
+          location: currentLoc || 'Not specified',
+          lat: formData.lat,
+          lng: formData.lng,
+          imageUrl: currentImg || null,
+          status: 'Pending'
+        };
+        console.log("Submitting complaint...");
+        console.log("Payload:", payload);
+        const response = await axios.post('http://localhost:5000/api/complaints', payload);
+        console.log("Complaint saved:", response.data);
+
+      } catch (err) {
+        console.error('❌ Error saving complaint:', err.response?.data || err.message);
+      }
+
       setMessages(prev => [...prev, { isBot: true, text: "🎉 Your complaint has been successfully filed!" }]);
     }
   };
@@ -831,7 +983,7 @@ Output the complaint text only. No greetings, no preamble, no sign-off, no markd
                   <button onClick={() => navigate('/tracker')} className="btn-primary py-2.5">
                     Track My Complaint
                   </button>
-                  <button onClick={() => window.location.reload()} className="text-saffron font-semibold text-sm hover:underline text-center">
+                  <button onClick={() => resetAllState()} className="text-saffron font-semibold text-sm hover:underline text-center">
                     Report Another Issue
                   </button>
                 </div>
