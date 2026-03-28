@@ -1,0 +1,17 @@
+﻿[dotenv@17.3.1] injecting env (7) from ..\.env -- tip: ΓÜÖ∩╕Å  override existing env vars with { override: true }
+Found 5 reopened complaints:
+ID: IND-2026-52071
+  Status: Pending
+  Reopen Image: null
+ID: IND-2026-88588
+  Status: Pending
+  Reopen Image: null
+ID: IND-2026-65847
+  Status: Pending
+  Reopen Image: uploads\8bc21e4475e1637d25a31e9ea014766a
+ID: IND-2026-42411
+  Status: Pending
+  Reopen Image: uploads\4eeaa6333e30b8b987d7fb86ae12e789
+ID: IND-2026-43399
+  Status: Pending
+  Reopen Image: uploads\24a9119da2d7dc6d2c88071021b625d3

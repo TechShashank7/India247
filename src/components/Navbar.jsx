@@ -1,11 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { signOut } from 'firebase/auth';
+import { auth } from '../firebase';
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
+  const { user } = useAuth();
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error('Logout failed', error);
+    }
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -28,7 +40,7 @@ const Navbar = () => {
     <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${
       isScrolled ? 'bg-white/80 backdrop-blur-md shadow-sm border-b border-gray-100' : 'bg-transparent'
     }`}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center gap-2">
             <Link to="/" className="flex items-center gap-2">
@@ -61,6 +73,16 @@ const Navbar = () => {
             <div className="text-sm font-semibold text-gray-500 cursor-pointer hover:text-navy mr-4">
               EN | हिंदी
             </div>
+
+            {user ? (
+              <button onClick={handleLogout} className="btn-outline py-2 px-4 text-sm hover:-translate-y-0.5 transition-transform">
+                Logout
+              </button>
+            ) : (
+              <Link to="/auth" className="btn-outline py-2 px-4 text-sm hover:-translate-y-0.5 transition-transform">
+                Login
+              </Link>
+            )}
 
             <Link to="/report" className="btn-primary py-2 px-5 text-sm shadow-md hover:-translate-y-0.5 transition-transform">
               Report Issue
@@ -97,6 +119,22 @@ const Navbar = () => {
                 {link.name}
               </Link>
             ))}
+             {user ? (
+              <button 
+                onClick={() => { handleLogout(); setMobileMenuOpen(false); }}
+                className="block w-full text-center mt-2 border border-gray-300 text-gray-700 rounded-xl px-4 py-2.5 font-semibold"
+              >
+                Logout
+              </button>
+            ) : (
+              <Link 
+                to="/auth" 
+                onClick={() => setMobileMenuOpen(false)}
+                className="block w-full text-center mt-2 border border-gray-300 text-gray-700 rounded-xl px-4 py-2.5 font-semibold"
+              >
+                Login
+              </Link>
+            )}
             <Link 
               to="/report" 
               onClick={() => setMobileMenuOpen(false)}

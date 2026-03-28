@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import LandingPage from './pages/LandingPage';
 import ReportPage from './pages/ReportPage';
@@ -8,6 +8,8 @@ import FeedPage from './pages/FeedPage';
 import TrackerPage from './pages/TrackerPage';
 import RewardsPage from './pages/RewardsPage';
 import OfficerDashboard from './pages/OfficerDashboard';
+import AuthPage from './pages/AuthPage';
+import { useAuth } from './context/AuthContext';
 
 // Simple scroll to top on route change
 const ScrollToTop = () => {
@@ -16,6 +18,12 @@ const ScrollToTop = () => {
     window.scrollTo(0, 0);
   }, [pathname]);
   return null;
+};
+
+const ProtectedRoute = ({ children }) => {
+  const { user } = useAuth();
+  if (!user) return <Navigate to="/auth" />;
+  return children;
 };
 
 // Simple bottom nav for mobile
@@ -58,11 +66,12 @@ function App() {
         <main className="flex-1 w-full relative">
           <Routes>
             <Route path="/" element={<LandingPage />} />
-            <Route path="/report" element={<ReportPage />} />
+            <Route path="/auth" element={<AuthPage />} />
+            <Route path="/report" element={<ProtectedRoute><ReportPage /></ProtectedRoute>} />
             <Route path="/map" element={<MapPage />} />
             <Route path="/feed" element={<FeedPage />} />
-            <Route path="/tracker" element={<TrackerPage />} />
-            <Route path="/rewards" element={<RewardsPage />} />
+            <Route path="/tracker" element={<ProtectedRoute><TrackerPage /></ProtectedRoute>} />
+            <Route path="/rewards" element={<ProtectedRoute><RewardsPage /></ProtectedRoute>} />
             <Route path="/officer" element={<OfficerDashboard />} />
           </Routes>
         </main>

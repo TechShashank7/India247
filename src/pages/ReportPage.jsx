@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Camera, Send, MapPin, Loader } from 'lucide-react';
 import axios from 'axios';
 import ChatBubble from '../components/ChatBubble';
+import { useAuth } from '../context/AuthContext';
 
 // ─── API KEYS ────────────────────────────────────────────────────────────────
 const GEMINI_API_KEY      = import.meta.env.VITE_GEMINI_API_KEY;
@@ -414,6 +415,7 @@ const generateTrackingId = () => `IND-2026-${Math.floor(10000 + Math.random() * 
 
 const ReportPage = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   // ── UI state
   const [step,               setStep]               = useState(1); // 1=chat 2=photo 3=verifying 4=location 5=anon 6=done
@@ -665,6 +667,7 @@ Respond ONLY with this exact JSON (no markdown, no extra text):
     setFormData({});
     setDetectedCategory(null);
     setIssueSummary('');
+    setTrackingId(generateTrackingId());
     setMessages([
       { isBot: true, text: "Namaste! 🙏 I'm Meera, your India247 assistant. What civic issue are you facing today?" }
     ]);
@@ -673,9 +676,6 @@ Respond ONLY with this exact JSON (no markdown, no extra text):
 
   // ── STEP 5 → 6: Anonymous choice & submit ────────────────────────────────
   const handleAnonymousSubmit = async (isAnonymous) => {
-    const currentTrackingId = generateTrackingId();
-    setTrackingId(currentTrackingId);
-
     setMessages(prev => [...prev, { isBot: false, text: isAnonymous ? '🔒 Yes, keep me anonymous' : '👤 No, use my name' }]);
     
     // Capture state early before reset
@@ -700,10 +700,9 @@ Assigned department: ${currentCat?.dept || 'Municipal Corporation'}
 Citizen's description: ${conversationText}
 Location: ${currentLoc || 'Not specified'}
 Anonymous filing: ${isAnonymous ? 'Yes' : 'No'}
-Tracking ID: ${currentTrackingId}
 
 Write ONLY a concise formal complaint in third-person, 3-4 sentences, for a municipal officer to read.
-Start with exactly "This complaint pertains to..." and end with "Tracking ID: ${currentTrackingId}".
+Start with exactly "This complaint pertains to..." and focus on the technical details of the issue.
 Output the complaint text only. No greetings, no preamble, no sign-off, no markdown.`;
 
     try {
@@ -746,11 +745,17 @@ Output the complaint text only. No greetings, no preamble, no sign-off, no markd
           lat: formData.lat,
           lng: formData.lng,
           imageUrl: currentImg || null,
-          status: 'Pending'
+          status: 'Pending',
+          stage: 'Complaint Filed',
+          trackingId: trackingId,
+          user: {
+            name: isAnonymous ? 'Anonymous' : user?.name || 'User',
+            uid: user?.uid
+          }
         };
         console.log("Submitting complaint...");
         console.log("Payload:", payload);
-        const response = await axios.post('http://localhost:5000/api/complaints', payload);
+        const response = await axios.post('/api/complaints', payload);
         console.log("Complaint saved:", response.data);
 
       } catch (err) {
@@ -761,7 +766,7 @@ Output the complaint text only. No greetings, no preamble, no sign-off, no markd
       setMessages(prev => [...prev, { isBot: true, text: "🎉 Your complaint has been successfully filed! Here's your official summary:" }]);
     } catch {
       setIsTyping(false);
-      const fallbackSummary = `This complaint pertains to a ${currentCat?.name || 'civic'} issue reported at ${currentLoc}. The matter has been forwarded to the ${currentCat?.dept || 'Municipal Corporation'} for resolution. Tracking ID: ${currentTrackingId}.`;
+      const fallbackSummary = `This complaint pertains to a ${currentCat?.name || 'civic'} issue reported at ${currentLoc}. The matter has been forwarded to the ${currentCat?.dept || 'Municipal Corporation'} for resolution.`;
       setComplaintSummary(fallbackSummary);
       
       try {
@@ -773,11 +778,17 @@ Output the complaint text only. No greetings, no preamble, no sign-off, no markd
           lat: formData.lat,
           lng: formData.lng,
           imageUrl: currentImg || null,
-          status: 'Pending'
+          status: 'Pending',
+          stage: 'Complaint Filed',
+          trackingId: trackingId,
+          user: {
+            name: isAnonymous ? 'Anonymous' : user?.name || 'User',
+            uid: user?.uid
+          }
         };
         console.log("Submitting complaint...");
         console.log("Payload:", payload);
-        const response = await axios.post('http://localhost:5000/api/complaints', payload);
+        const response = await axios.post('/api/complaints', payload);
         console.log("Complaint saved:", response.data);
 
       } catch (err) {
@@ -980,7 +991,10 @@ Output the complaint text only. No greetings, no preamble, no sign-off, no markd
                 </div>
 
                 <div className="flex flex-col gap-3">
-                  <button onClick={() => navigate('/tracker')} className="btn-primary py-2.5">
+                  <button 
+                    onClick={() => navigate('/tracker', { state: { complaintId: trackingId } })} 
+                    className="btn-primary py-2.5"
+                  >
                     Track My Complaint
                   </button>
                   <button onClick={() => resetAllState()} className="text-saffron font-semibold text-sm hover:underline text-center">

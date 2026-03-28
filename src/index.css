@@ -105,3 +105,88 @@
     box-shadow: 0 0 0 1px var(--color-saffron);
   }
 }
+
+.refresh-fab {
+  position: absolute;
+  bottom: 24px;
+  right: 24px;
+  z-index: 500;
+
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+
+  background: #111827;
+  border: none;
+  cursor: pointer;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  box-shadow: 0 6px 16px rgba(0,0,0,0.25);
+  transition: all 0.25s ease;
+}
+
+@media (min-width: 768px) {
+  .refresh-fab {
+    bottom: 120px; /* Offset it above the bottom cards on Desktop */
+    right: 32px;
+  }
+}
+
+.refresh-fab:hover {
+  transform: scale(1.08);
+  box-shadow: 0 8px 22px rgba(0,0,0,0.35);
+}
+
+.refresh-fab:active {
+  transform: scale(0.92);
+}
+
+.refresh-fab:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.icon {
+  width: 20px;
+  height: 20px;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+.pulse {
+  animation: spin 1s linear infinite, pulse 0.6s ease;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0% { transform: scale(0.95); opacity: 0.7; }
+  50% { transform: scale(1.1); opacity: 1; }
+  100% { transform: scale(1); }
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 8s linear infinite;
+}
+
+.stagger-fade-in {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
