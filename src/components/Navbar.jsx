@@ -29,12 +29,18 @@ const Navbar = () => {
 
   const navLinks = [
     { name: 'Home', path: '/' },
-    { name: 'Map', path: '/map' },
-    { name: 'Feed', path: '/feed' },
-    { name: 'Tracker', path: '/tracker' },
-    { name: 'Rewards', path: '/rewards' },
-    { name: 'Officer Dashboard', path: '/officer' }
+    { name: 'Map', path: '/map', roles: ['user', 'officer'] },
+    { name: 'Feed', path: '/feed', roles: ['user'] },
+    { name: 'Tracker', path: '/tracker', roles: ['user'] },
+    { name: 'Rewards', path: '/rewards', roles: ['user'] },
+    { name: 'Officer Dashboard', path: '/officer', roles: ['officer'] }
   ];
+
+  const visibleLinks = navLinks.filter(link => {
+    if (link.name === 'Home') return true;
+    if (!user) return false;
+    return link.roles.includes(user.role);
+  });
 
   return (
     <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${
@@ -58,7 +64,7 @@ const Navbar = () => {
 
           {/* Desktop Nav */}
           <div className="hidden md:flex items-center space-x-6">
-            {navLinks.map((link) => (
+            {visibleLinks.map((link) => (
               <Link
                 key={link.name}
                 to={link.path}
@@ -84,9 +90,11 @@ const Navbar = () => {
               </Link>
             )}
 
-            <Link to="/report" className="btn-primary py-2 px-5 text-sm shadow-md hover:-translate-y-0.5 transition-transform">
-              Report Issue
-            </Link>
+            {(!user || user.role !== 'officer') && (
+              <Link to="/report" className="btn-primary py-2 px-5 text-sm shadow-md hover:-translate-y-0.5 transition-transform">
+                Report Issue
+              </Link>
+            )}
           </div>
 
           {/* Mobile menu button */}
@@ -105,7 +113,7 @@ const Navbar = () => {
       {mobileMenuOpen && (
         <div className="md:hidden bg-white border-b border-gray-100 shadow-lg animate-in slide-in-from-top-2">
           <div className="px-4 py-3 space-y-1">
-            {navLinks.map((link) => (
+            {visibleLinks.map((link) => (
               <Link
                 key={link.name}
                 to={link.path}
@@ -135,13 +143,15 @@ const Navbar = () => {
                 Login
               </Link>
             )}
-            <Link 
-              to="/report" 
-              onClick={() => setMobileMenuOpen(false)}
-              className="block w-full text-center mt-4 bg-saffron text-white rounded-xl px-4 py-2.5 font-semibold"
-            >
-              Report Issue
-            </Link>
+            {(!user || user.role !== 'officer') && (
+              <Link 
+                to="/report" 
+                onClick={() => setMobileMenuOpen(false)}
+                className="block w-full text-center mt-4 bg-saffron text-white rounded-xl px-4 py-2.5 font-semibold"
+              >
+                Report Issue
+              </Link>
+            )}
           </div>
         </div>
       )}

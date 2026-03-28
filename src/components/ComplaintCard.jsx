@@ -1,10 +1,12 @@
 import React from 'react';
 import { MapPin, MessageSquare, Share2, ThumbsUp } from 'lucide-react';
 import StatusBadge from './StatusBadge';
+import { useAuth } from '../context/AuthContext';
 
 const ComplaintCard = ({ complaint, onImageClick, onUpvote, onComment, onShare, showComments, toggleComments }) => {
   const [isExpanded, setIsExpanded] = React.useState(false);
   const [commentText, setCommentText] = React.useState('');
+  const { user } = useAuth();
 
   const formatTime = (date) => {
     if (!date) return 'Just now';
@@ -12,15 +14,20 @@ const ComplaintCard = ({ complaint, onImageClick, onUpvote, onComment, onShare, 
     return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
+  const isOwner = user?.uid && complaint.user?.uid === user.uid;
+  // If the currently logged in user is the one who submitted it, show their real name, otherwise show what's in DB (which might be 'Anonymous')
+  const authorName = isOwner ? (user?.name || complaint.user?.name) : (complaint.user?.name || 'Citizen');
+  const avatarLetter = authorName && authorName !== 'Anonymous' ? authorName[0] : (complaint.title ? complaint.title[0] : 'C');
+
   return (
     <div className="card hover:-translate-y-1 transition-transform cursor-pointer">
       <div className="flex justify-between items-start mb-3">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-navy/10 flex items-center justify-center text-navy font-bold text-sm">
-            {complaint.user?.avatar || (complaint.title ? complaint.title[0] : 'C')}
+            {complaint.user?.avatar || avatarLetter}
           </div>
           <div>
-            <p className="font-semibold text-sm">{complaint.user?.name || 'Citizen'}</p>
+            <p className="font-semibold text-sm">{authorName}</p>
             <p className="text-xs text-gray-400">{formatTime(complaint.createdAt)}</p>
           </div>
         </div>

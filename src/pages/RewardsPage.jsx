@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Trophy, Star, TrendingUp, Gift, Zap, MessageSquare, ThumbsUp, FileText, Award, ChevronRight, Loader2 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 // Step 5: Badge System
 function getBadge(points) {
@@ -50,7 +51,8 @@ const RewardsPage = () => {
   const [leaderboard, setLeaderboard] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const userName = "Rahul Sharma"; // Will be replaced with Firebase auth
+  const { user } = useAuth();
+  const userName = user?.name || "Citizen";
 
   // Fetch data from backend
   useEffect(() => {
@@ -82,7 +84,10 @@ const RewardsPage = () => {
   const progress = nextLevel.target > 0 ? Math.min((points / nextLevel.target) * 100, 100) : 100;
 
   // Get initials from name
-  const initials = userName.split(' ').map(n => n[0]).join('').slice(0, 2);
+  const words = userName.trim().split(/\s+/);
+  const initials = words.length >= 2 
+    ? (words[0][0] + words[1][0]).toUpperCase() 
+    : (words[0]?.[0] || 'C').toUpperCase();
 
   if (loading) {
     return (

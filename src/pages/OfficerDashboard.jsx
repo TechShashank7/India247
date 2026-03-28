@@ -4,6 +4,7 @@ import axios from 'axios';
 import { Target, AlertTriangle, Clock, CheckCircle, Star } from 'lucide-react';
 import StatusBadge from '../components/StatusBadge';
 import ImageModal from '../components/ImageModal';
+import { useAuth } from '../context/AuthContext';
 
 const OfficerDashboard = () => {
   const [complaints, setComplaints] = useState([]);
@@ -14,6 +15,7 @@ const OfficerDashboard = () => {
   const [selectedReopen, setSelectedReopen] = useState(null);
   const [tick, setTick] = useState(0);
   const [performance, setPerformance] = useState(null);
+  const { user } = useAuth();
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -65,7 +67,7 @@ const OfficerDashboard = () => {
 
   const fetchPerformance = async () => {
     try {
-      const officerName = encodeURIComponent("Officer Sharma");
+      const officerName = encodeURIComponent(user?.name || "Officer");
       const res = await fetch(`/api/complaints/officer/performance/${officerName}`);
       const data = await res.json();
       setPerformance(data);
@@ -76,8 +78,10 @@ const OfficerDashboard = () => {
 
   useEffect(() => {
     fetchComplaints();
-    fetchPerformance();
-  }, []);
+    if (user?.name) {
+      fetchPerformance();
+    }
+  }, [user?.name]);
 
   const updateStatus = async (id, action) => {
     let status = "";
@@ -141,6 +145,13 @@ const OfficerDashboard = () => {
     }
   });
 
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  };
+
   return (
     <div className="pt-24 pb-12 min-h-screen bg-background">
       <div className="px-4 sm:px-6 lg:px-8">
@@ -148,11 +159,11 @@ const OfficerDashboard = () => {
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
           <div>
-            <h1 className="text-2xl font-bold text-navy flex items-center gap-2">Good morning, Officer Sharma 👋</h1>
+            <h1 className="text-2xl font-bold text-navy flex items-center gap-2">{getGreeting()}, {user?.name || 'Officer'} 👋</h1>
             <p className="text-gray-500 flex items-center gap-2 font-medium mt-1">
               <span>{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
               <span className="w-1.5 h-1.5 rounded-full bg-gray-300"></span>
-              <span className="text-saffron">North Delhi — Ward 14</span>
+              <span className="text-saffron">{user?.city || 'Your Jurisdiction'}</span>
             </p>
           </div>
           <button className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-semibold text-gray-600 opacity-50 cursor-not-allowed">

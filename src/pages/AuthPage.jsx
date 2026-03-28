@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { auth, googleProvider } from "../firebase";
+import axios from "axios";
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
@@ -10,7 +11,10 @@ import {
 const AuthPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [city, setCity] = useState("");
   const [isLogin, setIsLogin] = useState(true);
+  const [role, setRole] = useState("user");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -21,12 +25,26 @@ const AuthPage = () => {
     setLoading(true);
 
     try {
+      let userCredential;
       if (isLogin) {
-        await signInWithEmailAndPassword(auth, email, password);
+        userCredential = await signInWithEmailAndPassword(auth, email, password);
       } else {
-        await createUserWithEmailAndPassword(auth, email, password);
+        userCredential = await createUserWithEmailAndPassword(auth, email, password);
       }
+
+      // Sync with MongoDB
+      await axios.post('/api/users/sync', {
+        uid: userCredential.user.uid,
+        email: userCredential.user.email,
+        name: isLogin ? (userCredential.user.displayName || email.split('@')[0]) : name,
+        city: role === 'officer' ? city : undefined,
+        role: isLogin ? undefined : role // Only send role if signing up, otherwise let backend keep existing
+      });
+
       navigate("/");
+      // The Navbar and App routers will handle role-based redirection automatically
+      // since AuthContext listens for auth state and fetches role.
+      window.location.reload(); // Refresh to ensure context fully hydrates
     } catch (err) {
       setError(err.message);
     } finally {
@@ -38,8 +56,18 @@ const AuthPage = () => {
     setError("");
     setLoading(true);
     try {
-      await signInWithPopup(auth, googleProvider);
+      const result = await signInWithPopup(auth, googleProvider);
+      
+      await axios.post('/api/users/sync', {
+        uid: result.user.uid,
+        email: result.user.email,
+        name: result.user.displayName || result.user.email.split('@')[0],
+        city: role === 'officer' ? city : undefined,
+        role: role
+      });
+
       navigate("/");
+      window.location.reload();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -61,6 +89,29 @@ const AuthPage = () => {
 
         <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
           <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+            
+            {/* Role Selection Tabs */}
+            <div className="flex bg-gray-100 rounded-lg p-1 mb-6">
+              <button
+                type="button"
+                onClick={() => setRole("user")}
+                className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
+                  role === "user" ? "bg-white text-saffron shadow-sm" : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                Citizen
+              </button>
+              <button
+                type="button"
+                onClick={() => setRole("officer")}
+                className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
+                  role === "officer" ? "bg-white text-navy shadow-sm" : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                Officer
+              </button>
+            </div>
+
             <form className="space-y-6" onSubmit={handleAuth}>
               {error && (
                 <div className="bg-red-50 text-red-500 p-3 rounded text-sm">
@@ -68,6 +119,36 @@ const AuthPage = () => {
                 </div>
               )}
               
+              {!isLogin && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Full Name</label>
+                  <div className="mt-1">
+                    <input
+                      type="text"
+                      required
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-saffron focus:border-saffron sm:text-sm"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {!isLogin && role === "officer" && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">City / Jurisdiction</label>
+                  <div className="mt-1">
+                    <input
+                      type="text"
+                      required
+                      value={city}
+                      onChange={(e) => setCity(e.target.value)}
+                      className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-saffron focus:border-saffron sm:text-sm"
+                    />
+                  </div>
+                </div>
+              )}
+
               <div>
                 <label className="block text-sm font-medium text-gray-700">Email address</label>
                 <div className="mt-1">
@@ -98,9 +179,11 @@ const AuthPage = () => {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-saffron hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-saffron disabled:opacity-50"
+                  className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 ${
+                    role === 'officer' ? 'bg-navy hover:bg-gray-800 focus:ring-navy' : 'bg-saffron hover:bg-orange-600 focus:ring-saffron'
+                  }`}
                 >
-                  {isLogin ? "Sign in" : "Sign up"}
+                  {isLogin ? `Sign in as ${role === 'officer' ? 'Officer' : 'Citizen'}` : `Sign up as ${role === 'officer' ? 'Officer' : 'Citizen'}`}
                 </button>
               </div>
             </form>
