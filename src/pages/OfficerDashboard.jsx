@@ -54,7 +54,7 @@ const OfficerDashboard = () => {
   const fetchComplaints = async () => {
     setLoading(true);
     try {
-      const res = await axios.get('http://localhost:5000/api/complaints');
+      const res = await axios.get('/api/complaints');
       setComplaints(res.data);
     } catch (err) {
       console.error('Error fetching complaints:', err);
@@ -66,7 +66,7 @@ const OfficerDashboard = () => {
   const fetchPerformance = async () => {
     try {
       const officerName = encodeURIComponent("Officer Sharma");
-      const res = await fetch(`http://localhost:5000/api/complaints/officer/performance/${officerName}`);
+      const res = await fetch(`/api/complaints/officer/performance/${officerName}`);
       const data = await res.json();
       setPerformance(data);
     } catch (err) {
@@ -99,7 +99,7 @@ const OfficerDashboard = () => {
 
     setUpdatingId(id);
     try {
-      await axios.put(`http://localhost:5000/api/complaints/${id}/status`, {
+      await axios.put(`/api/complaints/${id}/status`, {
         status,
         stage
       });

@@ -57,9 +57,9 @@ const RewardsPage = () => {
     setLoading(true);
 
     Promise.all([
-      fetch(`http://localhost:5000/api/complaints/user/points/${encodeURIComponent(userName)}`)
+      fetch(`/api/complaints/user/points/${encodeURIComponent(userName)}`)
         .then(res => res.json()),
-      fetch("http://localhost:5000/api/complaints/leaderboard")
+      fetch("/api/complaints/leaderboard")
         .then(res => res.json())
     ]).then(([pointsData, leaderboardData]) => {
       setPoints(pointsData.points || 0);
