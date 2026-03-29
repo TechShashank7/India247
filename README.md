@@ -1,16 +1,39 @@
-# React + Vite
+# 🇮🇳 India247
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+**Apna Shehar, Apni Zimmedari.**
 
-Currently, two official plugins are available:
+India247 is a modern, responsive, and intelligent civic complaint platform designed for Indian citizens. It empowers users to seamlessly report civic issues (like potholes, broken streetlights, or waste management), track resolutions in real-time, and get rewarded for their active participation in community building.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+![India247 Platform Overview](https://img.shields.io/badge/Status-Active-success) ![React](https://img.shields.io/badge/Frontend-React_19-blue) ![Node.js](https://img.shields.io/badge/Backend-Node+Express-green)
 
-## React Compiler
+---
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## ✨ Key Features
 
-## Expanding the ESLint configuration
+- **🤖 AI-Powered Reporting:** A fully interactive, chat-based reporting interface powered by Google's **Gemini API**. Users simply chat with the AI assistant (Meera), which automatically classifies the issue and processes uploaded photos.
+- **📍 Interactive Maps:** Built with Google Maps API to provide a live, visual geographic overview of all active, trending, and resolved complaints across the city.
+- **⏱️ Real-Time Tracking & Escalation:** Users get a transparent timeline of their complaint's lifecycle. Issues that remain unresolved automatically trigger escalation tiers.
+- **🏆 Gamification & Rewards:** A dynamic citizen dashboard that tracks impact points, unlocks badges, and provides rewards for active community participation.
+- **🔐 Role-Based Access (RBAC):** Firebase authentication seamlessly separating normal citizen feeds from the analytical, secure **Officer Dashboard**.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+---
+
+## 🛠️ Tech Stack
+
+**Frontend**
+- **Framework:** React 19 + Vite
+- **Styling:** Tailwind CSS v4
+- **Routing:** React Router v7
+- **Maps:** Google Maps API
+- **Icons:** Lucide React
+
+**Backend**
+- **Server:** Node.js + Express.js
+- **Database:** MongoDB (with Mongoose)
+- **Authentication:** Firebase Auth
+- **AI Integrations:** Gemini 2.5 Flash / Flash-Lite API
+- **Cloud Storage:** Cloudinary
+
+---
+
+> **Made with ❤️ for Bharat.**
