@@ -97,18 +97,23 @@ Incorrect example (DO NOT DO THIS):
 "Could you please upload a photo? [READY_FOR_PHOTO]"
 5. Never mention "[READY_FOR_PHOTO]" explicitly to the user — it's a hidden signal.
 
-CATEGORY DETECTION:
-Once you understand the issue, include this hidden JSON on its own line in ONE of your responses (as soon as you detect the category, not necessarily at the end):
-[CATEGORY:{"name":"Roads & Potholes","dept":"Roads Department","icon":"🕳️"}]
+INTENT DETECTION:
+Once you understand the user's issue clearly, include this hidden line in ONE of your responses:
 
-Valid category values: 
-- {"name":"Roads & Potholes","dept":"Roads Department","icon":"🕳️"}
-- {"name":"Garbage & Sanitation","dept":"Sanitation Department","icon":"🗑️"}
-- {"name":"Water & Sewage","dept":"Water Department","icon":"💧"}
-- {"name":"Electricity & Streetlights","dept":"Electricity Department","icon":"💡"}
-- {"name":"Parks & Public Spaces","dept":"Parks Department","icon":"🌳"}
-- {"name":"Public Infrastructure","dept":"Municipal Corporation","icon":"🏗️"}
-- {"name":"Other Civic Issue","dept":"Municipal Corporation","icon":"📋"}
+[INTENT: "short natural description of the issue"]
+
+Examples:
+- [INTENT: "pothole causing accidents on main road"]
+- [INTENT: "garbage not collected for several days"]
+- [INTENT: "street light not working at night"]
+- [INTENT: "stray dogs attacking people"]
+
+Rules:
+- Keep it short (5–10 words)
+- Do NOT include category or department
+- Do NOT explain anything
+- Output ONLY the intent in plain English
+- Include it only once when confident
 
 OUT-OF-SCOPE ISSUES:
 If the user describes something that is NOT a civic issue (cybercrime, medical, personal disputes, financial fraud, etc.), politely explain that India247 is only for civic/municipal issues. Direct them to the appropriate authority:
@@ -189,7 +194,7 @@ function parseAIResponse(rawText) {
   let cleanText = rawText;
   let readyForPhoto = false;
   let outOfScope = false;
-  let detectedCategory = null;
+  let intent = null;
 
   // Check for [READY_FOR_PHOTO]
   if (cleanText.includes('[READY_FOR_PHOTO]')) {
@@ -203,19 +208,17 @@ function parseAIResponse(rawText) {
     cleanText = cleanText.replace('[OUT_OF_SCOPE]', '').trim();
   }
 
-  // Check for [CATEGORY:{...}]
-  const categoryMatch = cleanText.match(/\[CATEGORY:(\{[^}]+\})\]/);
-  if (categoryMatch) {
-    try {
-      detectedCategory = JSON.parse(categoryMatch[1]);
-    } catch { /* ignore parse errors */ }
-    cleanText = cleanText.replace(categoryMatch[0], '').trim();
+  // Check for [INTENT: "..."]
+  const intentMatch = cleanText.match(/\[INTENT:\s*"([^"]+)"\]/);
+  if (intentMatch) {
+    intent = intentMatch[1].trim();
+    cleanText = cleanText.replace(intentMatch[0], '').trim();
   }
 
   // Clean up any leftover double newlines
   cleanText = cleanText.replace(/\n{3,}/g, '\n\n').trim();
 
-  return { cleanText, readyForPhoto, outOfScope, detectedCategory };
+  return { cleanText, readyForPhoto, outOfScope, intent };
 }
 
 // ─── Load Google Maps ─────────────────────────────────────────────────────────
@@ -432,11 +435,13 @@ const ReportPage = () => {
   const [verificationResult, setVerificationResult] = useState(null);
 
   // ── Complaint data
-  const [detectedCategory,   setDetectedCategory]   = useState(null); // shown in sidebar
+  const [detectedIntent,     setDetectedIntent]     = useState(null); // shown in sidebar
   const [issueSummary,       setIssueSummary]       = useState('');   // built from conversation
   const [formData,           setFormData]           = useState({});
   const [complaintSummary,   setComplaintSummary]   = useState('');
   const [trackingId,         setTrackingId]         = useState(generateTrackingId());
+  const [classification,     setClassification]     = useState(null);
+  const [classifying,        setClassifying]        = useState(false);
 
   // ── Refs
   const messagesEndRef   = useRef(null);
@@ -501,13 +506,13 @@ const ReportPage = () => {
       });
       
       conversationRef.current.push({ role: 'user', content: text });
-      const { cleanText, readyForPhoto, outOfScope, detectedCategory: cat } = parseAIResponse(rawReply);
+      const { cleanText, readyForPhoto, outOfScope, intent } = parseAIResponse(rawReply);
 
       // Store AI turn in history (clean text only)
       conversationRef.current.push({ role: 'assistant', content: cleanText });
 
-      // Update detected category in sidebar
-      if (cat) setDetectedCategory(cat);
+      // Update detected intent in sidebar
+      if (intent) setDetectedIntent(intent);
 
       setIsTyping(false);
       setMessages(prev => [...prev, { isBot: true, text: cleanText }]);
@@ -665,7 +670,7 @@ Respond ONLY with this exact JSON (no markdown, no extra text):
   const resetAllState = () => {
     conversationRef.current = [];
     setFormData({});
-    setDetectedCategory(null);
+    setDetectedIntent(null);
     setIssueSummary('');
     setTrackingId(generateTrackingId());
     setMessages([
@@ -681,41 +686,45 @@ Respond ONLY with this exact JSON (no markdown, no extra text):
     // Capture state early before reset
     const currentLoc = formData.location;
     const currentImg = formData.imageData;
-    const currentCat = detectedCategory;
+    const currentIntent = detectedIntent;
 
     setFormData(prev => ({ ...prev, anonymous: isAnonymous }));
     setStep(6);
     setIsTyping(true);
 
-    // Build summary from conversation + collected data
-    const conversationText = conversationRef.current
-      .filter(m => m.role === 'user')
-      .map(m => m.content)
-      .join('. ');
+    // Build structured conversation context for the summary
+    const structuredConversation = conversationRef.current
+      .map(m => m.role === 'user' ? `Citizen said: ${m.content}` : `Meera asked: ${m.content}`)
+      .join('\n');
 
-    const summaryPrompt = `You are a formal document writer for Indian municipal authorities. Write a civic complaint summary.
+    const SUMMARY_SYSTEM_PROMPT = `You are a formal municipal complaint writer for Indian civic authorities.
+Do NOT act like a chatbot.
+Do NOT include conversational phrases.
+Do NOT ask questions.
+Write in formal third-person tone only.`;
 
-Issue category: ${currentCat?.name || 'Civic Issue'}
-Assigned department: ${currentCat?.dept || 'Municipal Corporation'}
-Citizen's description: ${conversationText}
-Location: ${currentLoc || 'Not specified'}
-Anonymous filing: ${isAnonymous ? 'Yes' : 'No'}
+    const summaryPrompt = `Write a concise formal complaint summary based on the following context.
 
-Write ONLY a concise formal complaint in third-person, 3-4 sentences, for a municipal officer to read.
-Start with exactly "This complaint pertains to..." and focus on the technical details of the issue.
-Output the complaint text only. No greetings, no preamble, no sign-off, no markdown.`;
+Context: 
+${structuredConversation}
+
+Additional Details:
+- Issue Intent: ${currentIntent || 'Civic Issue'}
+- Location: ${currentLoc || 'Not specified'}
+- Anonymous filing: ${isAnonymous ? 'Yes' : 'No'}
+
+Rules for the summary:
+- Start with exactly "This complaint pertains to..."
+- Write 3-4 sentences.
+- Output the complaint text only. No greetings, no chatbot tone, no preamble, no sign-off, no markdown.`;
 
     try {
       const rawReply = await callGemini({
         messages: [
           {
             role: "system",
-            content: MEERA_SYSTEM_PROMPT
+            content: SUMMARY_SYSTEM_PROMPT
           },
-          ...conversationRef.current.map(msg => ({
-            role: msg.role === "user" ? "user" : "assistant",
-            content: msg.content
-          })),
           {
             role: "user",
             content: summaryPrompt
@@ -728,6 +737,9 @@ Output the complaint text only. No greetings, no preamble, no sign-off, no markd
       cleanText = cleanText
         .replace(/^(Namaste!?|Hello!?|Hi!?|I'm Meera[^.]*\.)\s*/i, '')
         .replace(/^(How can I help[^.]*\.)\s*/i, '')
+        .replace(/^(Thanks for the details[^.]*\.)\s*/i, '')
+        .replace(/^(Please upload a photo[^.]*\.)\s*/i, '')
+        .replace(/^(Here is the formal complaint summary:[^.]*\n?)\s*/i, '')
         .trim();
       setComplaintSummary(cleanText);
 
@@ -737,9 +749,29 @@ Output the complaint text only. No greetings, no preamble, no sign-off, no markd
           return;
         }
 
+        setClassifying(true);
+        let currentClassification = null;
+        try {
+          const res = await axios.post('/api/complaints/classify-issue', {
+            intent: currentIntent,
+            description: issueSummary
+          });
+          currentClassification = res.data;
+          setClassification(res.data);
+        } catch (err) {
+          console.error("Classification failed:", err);
+          currentClassification = {
+            category: "Other Civic Issues",
+            department: "Municipal Corporation",
+            confidence: "low"
+          };
+          setClassification(currentClassification);
+        }
+        setClassifying(false);
+
         const payload = {
-          title: currentCat?.name || 'Civic Issue',
-          category: currentCat?.dept || 'Municipal Corporation',
+          title: currentClassification?.category || currentIntent || 'Civic Issue',
+          category: currentClassification?.department || 'Municipal Corporation',
           description: cleanText,
           location: currentLoc || 'Not specified',
           lat: formData.lat,
@@ -766,13 +798,33 @@ Output the complaint text only. No greetings, no preamble, no sign-off, no markd
       setMessages(prev => [...prev, { isBot: true, text: "🎉 Your complaint has been successfully filed! Here's your official summary:" }]);
     } catch {
       setIsTyping(false);
-      const fallbackSummary = `This complaint pertains to a ${currentCat?.name || 'civic'} issue reported at ${currentLoc}. The matter has been forwarded to the ${currentCat?.dept || 'Municipal Corporation'} for resolution.`;
+      const fallbackSummary = `This complaint pertains to a civic issue reported at ${currentLoc}. The matter has been forwarded to the Municipal Corporation for resolution.`;
       setComplaintSummary(fallbackSummary);
       
       try {
+        setClassifying(true);
+        let currentClassification = null;
+        try {
+          const res = await axios.post('/api/complaints/classify-issue', {
+            intent: currentIntent,
+            description: issueSummary
+          });
+          currentClassification = res.data;
+          setClassification(res.data);
+        } catch (err) {
+          console.error("Classification failed:", err);
+          currentClassification = {
+            category: "Other Civic Issues",
+            department: "Municipal Corporation",
+            confidence: "low"
+          };
+          setClassification(currentClassification);
+        }
+        setClassifying(false);
+
         const payload = {
-          title: currentCat?.name || 'Civic Issue',
-          category: currentCat?.dept || 'Municipal Corporation',
+          title: currentClassification?.category || currentIntent || 'Civic Issue',
+          category: currentClassification?.department || 'Municipal Corporation',
           description: fallbackSummary,
           location: currentLoc || 'Not specified',
           lat: formData.lat,
@@ -833,16 +885,20 @@ Output the complaint text only. No greetings, no preamble, no sign-off, no markd
           })}
         </div>
 
-        {/* Detected category — shown subtly once AI figures it out */}
-        {detectedCategory && (
+        {/* Detected intent and/or classification */}
+        {(detectedIntent || classification) && (
           <div className="mb-6 p-4 bg-gray-50 rounded-xl border border-gray-100 animate-in fade-in duration-500">
             <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Detected Issue</p>
-            <div className="flex items-center gap-2">
-              <span className="text-2xl">{detectedCategory.icon}</span>
-              <div>
-                <p className="font-semibold text-navy text-sm">{detectedCategory.name}</p>
-                <p className="text-xs text-gray-500">{detectedCategory.dept}</p>
-              </div>
+            <div className="flex flex-col gap-1">
+              {detectedIntent && (
+                <p className="font-semibold text-navy text-sm capitalize">{detectedIntent}</p>
+              )}
+              {classification && (
+                <div className="mt-1 pt-2 border-t border-gray-100">
+                  <p className="text-xs text-gray-600 mb-1"><span className="font-semibold text-gray-500">Category:</span> {classification.category}</p>
+                  <p className="text-xs text-gray-600"><span className="font-semibold text-gray-500">Dept:</span> {classification.department}</p>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -889,12 +945,22 @@ Output the complaint text only. No greetings, no preamble, no sign-off, no markd
             ))}
 
             {/* Typing indicator */}
-            {isTyping && (
+            {isTyping && !classifying && (
               <ChatBubble isBot={true}>
                 <div className="flex space-x-1 items-center h-4">
                   <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
                   <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
                   <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                </div>
+              </ChatBubble>
+            )}
+
+            {/* Classifying issue loader */}
+            {classifying && (
+              <ChatBubble isBot={true}>
+                <div className="flex items-center gap-3 text-saffron font-medium text-sm h-4">
+                  <Loader size={16} className="animate-spin" />
+                  <span>Classifying issue...</span>
                 </div>
               </ChatBubble>
             )}
@@ -959,13 +1025,17 @@ Output the complaint text only. No greetings, no preamble, no sign-off, no markd
                   </div>
                 </div>
 
-                {detectedCategory && (
+                {(detectedIntent || classification) && (
                   <div className="flex items-center gap-3 bg-white rounded-xl p-3 border border-gray-100 mb-4">
-                    <span className="text-2xl">{detectedCategory.icon}</span>
                     <div>
-                      <p className="text-xs text-gray-400 uppercase font-semibold">Category</p>
-                      <p className="font-semibold text-navy text-sm">{detectedCategory.name}</p>
-                      <p className="text-xs text-gray-500">→ {detectedCategory.dept}</p>
+                      <p className="text-xs text-gray-400 uppercase font-semibold mb-1">Detected Issue</p>
+                      {detectedIntent && <p className="font-semibold text-navy text-sm capitalize mb-1">{detectedIntent}</p>}
+                      {classification && (
+                        <div className="text-xs text-gray-500 mt-2 pt-2 border-t border-gray-50 flex flex-col gap-0.5">
+                          <p><span className="font-semibold text-gray-500">Category:</span> {classification.category}</p>
+                          <p><span className="font-semibold text-gray-500">Dept:</span> {classification.department}</p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -1074,13 +1144,15 @@ Output the complaint text only. No greetings, no preamble, no sign-off, no markd
                 <div className="flex flex-col sm:flex-row gap-3">
                   <button
                     onClick={() => handleAnonymousSubmit(true)}
-                    className="flex-1 py-3 px-4 rounded-xl border-2 border-gray-200 font-semibold text-gray-600 hover:border-gray-300 hover:bg-gray-50 transition-colors"
+                    disabled={classifying || isTyping}
+                    className="flex-1 py-3 px-4 rounded-xl border-2 border-gray-200 font-semibold text-gray-600 hover:border-gray-300 hover:bg-gray-50 transition-colors disabled:opacity-60"
                   >
                     🔒 Yes, keep me anonymous
                   </button>
                   <button
                     onClick={() => handleAnonymousSubmit(false)}
-                    className="flex-1 py-3 px-4 rounded-xl border-2 border-saffron bg-orange-50 font-semibold text-saffron hover:bg-orange-100 transition-colors"
+                    disabled={classifying || isTyping}
+                    className="flex-1 py-3 px-4 rounded-xl border-2 border-saffron bg-orange-50 font-semibold text-saffron hover:bg-orange-100 transition-colors disabled:opacity-60"
                   >
                     👤 No, use my name
                   </button>

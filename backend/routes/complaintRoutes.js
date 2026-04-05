@@ -2,6 +2,7 @@ import express from 'express';
 import multer from 'multer';
 import Complaint from '../models/Complaint.js';
 import { validateReopenReason, validateReopenImage } from '../utils/reopenAI.js';
+import { classifyIssue } from '../utils/classificationAI.js';
 
 import { CloudinaryStorage } from "multer-storage-cloudinary";
 import cloudinary from "../utils/cloudinary.js";
@@ -22,6 +23,26 @@ const upload = multer({ storage });
 router.use((req, res, next) => {
   console.log(`[Complaint Route] ${req.method} ${req.url}`);
   next();
+});
+
+// AI Classification Endpoint
+router.post("/classify-issue", async (req, res) => {
+  try {
+    const { intent, description } = req.body;
+    console.log("[Classification API] Incoming intent:", intent);
+    
+    if (!intent && !description) {
+      return res.status(400).json({ error: "Missing intent or description" });
+    }
+
+    const result = await classifyIssue(intent, description);
+    console.log("[Classification API] Classification result:", result);
+
+    res.json(result);
+  } catch (err) {
+    console.error("[Classification API] ERROR:", err.message);
+    res.status(500).json({ error: "Classification failed" });
+  }
 });
 
 // 5. Reopen complaint
