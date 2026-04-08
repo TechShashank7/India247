@@ -25,12 +25,16 @@ app.use('/api/complaints', complaintRoutes);
 app.use('/api/users', userRoutes);
 
 // Root route (IMPORTANT for Render health check)
-app.get('/', (req, res) => {
+app.all('/', (req, res) => {
   res.send('Backend is running 🚀');
 });
 
+app.all('/', (req, res) => {
+  res.status(200).end();
+});
+
 // Health check route
-app.get('/api/health', (req, res) => {
+app.all('/api/health', (req, res) => {
   res.status(200).json({ status: 'ok' });
 });
 
