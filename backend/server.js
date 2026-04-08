@@ -26,15 +26,11 @@ app.use('/api/users', userRoutes);
 
 // Root route (IMPORTANT for Render health check)
 app.all('/', (req, res) => {
-  res.send('Backend is running 🚀');
-});
-
-app.all('/', (req, res) => {
-  res.status(200).end();
+  res.status(200).send('Backend is running 🚀');
 });
 
 // Health check route
-app.all('/api/health', (req, res) => {
+app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'ok' });
 });
 
