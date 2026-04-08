@@ -61,7 +61,7 @@ const MapPage = () => {
     setSuccess(false);
 
     try {
-      const res = await axios.get('/api/complaints');
+      const res = await axios.get('https://api.india247.shashankraj.in/api/complaints');
       setComplaints(res.data);
       setFilteredComplaints(res.data);
       setSuccess(true);

@@ -13,7 +13,7 @@ export const AuthProvider = ({ children }) => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
         try {
-          const res = await axios.get(`/api/users/${currentUser.uid}`);
+          const res = await axios.get(`https://api.india247.shashankraj.in/api/users/${currentUser.uid}`);
           setUser({
             uid: currentUser.uid,
             name: res.data.name || currentUser.displayName || "User",

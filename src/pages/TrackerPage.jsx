@@ -28,7 +28,7 @@ const TrackerPage = () => {
       setError("");
       setComplaint(null); // Clear previous results
 
-      const res = await fetch(`/api/complaints/${idToFetch.trim()}`);
+      const res = await fetch(`https://api.india247.shashankraj.in/api/complaints/${idToFetch.trim()}`);
       const data = await res.json();
 
       if (!res.ok) {
@@ -56,7 +56,7 @@ const TrackerPage = () => {
   useEffect(() => {
     if (complaint?.assignedOfficer?.name) {
       const officerName = encodeURIComponent(complaint.assignedOfficer.name);
-      fetch(`/api/complaints/officer/performance/${officerName}`)
+      fetch(`https://api.india247.shashankraj.in/api/complaints/officer/performance/${officerName}`)
         .then(res => res.json())
         .then(data => setPerformance(data))
         .catch(err => console.error("Performance error:", err));
@@ -74,7 +74,7 @@ const TrackerPage = () => {
         formData.append("image", image);
       }
 
-      const res = await fetch(`/api/complaints/${complaint._id}/reopen`, {
+      const res = await fetch(`https://api.india247.shashankraj.in/api/complaints/${complaint._id}/reopen`, {
         method: "POST",
         body: formData
       });
@@ -380,7 +380,7 @@ const TrackerPage = () => {
                         
                         try {
                           console.log("Submitting rating:", rating, "for:", complaint._id);
-                          const res = await fetch(`/api/complaints/${complaint._id}/rate`, {
+                          const res = await fetch(`https://api.india247.shashankraj.in/api/complaints/${complaint._id}/rate`, {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({ value: rating })

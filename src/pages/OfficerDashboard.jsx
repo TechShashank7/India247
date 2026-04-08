@@ -56,7 +56,7 @@ const OfficerDashboard = () => {
   const fetchComplaints = async () => {
     setLoading(true);
     try {
-      const res = await axios.get('/api/complaints');
+      const res = await axios.get('https://api.india247.shashankraj.in/api/complaints');
       setComplaints(res.data);
     } catch (err) {
       console.error('Error fetching complaints:', err);
@@ -68,7 +68,7 @@ const OfficerDashboard = () => {
   const fetchPerformance = async () => {
     try {
       const officerName = encodeURIComponent(user?.name || "Officer");
-      const res = await fetch(`/api/complaints/officer/performance/${officerName}`);
+      const res = await fetch(`https://api.india247.shashankraj.in/api/complaints/officer/performance/${officerName}`);
       const data = await res.json();
       setPerformance(data);
     } catch (err) {
@@ -103,7 +103,7 @@ const OfficerDashboard = () => {
 
     setUpdatingId(id);
     try {
-      await axios.put(`/api/complaints/${id}/status`, {
+      await axios.put(`https://api.india247.shashankraj.in/api/complaints/${id}/status`, {
         status,
         stage
       });

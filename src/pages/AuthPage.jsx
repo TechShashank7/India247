@@ -33,7 +33,7 @@ const AuthPage = () => {
       }
 
       // Sync with MongoDB
-      await axios.post('/api/users/sync', {
+      await axios.post('https://api.india247.shashankraj.in/api/users/sync', {
         uid: userCredential.user.uid,
         email: userCredential.user.email,
         name: isLogin ? (userCredential.user.displayName || email.split('@')[0]) : name,
@@ -58,7 +58,7 @@ const AuthPage = () => {
     try {
       const result = await signInWithPopup(auth, googleProvider);
       
-      await axios.post('/api/users/sync', {
+      await axios.post('https://api.india247.shashankraj.in/api/users/sync', {
         uid: result.user.uid,
         email: result.user.email,
         name: result.user.displayName || result.user.email.split('@')[0],

@@ -18,7 +18,7 @@ const FeedPage = () => {
   const fetchComplaints = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`/api/complaints/feed?sort=${sort}&category=${category}`);
+      const res = await axios.get(`https://api.india247.shashankraj.in/api/complaints/feed?sort=${sort}&category=${category}`);
       setComplaints(res.data);
     } catch (error) {
       console.error('Error fetching complaints:', error);
@@ -33,7 +33,7 @@ const FeedPage = () => {
 
   const handleUpvote = async (id) => {
     try {
-      await axios.post(`/api/complaints/${id}/upvote`);
+      await axios.post(`https://api.india247.shashankraj.in/api/complaints/${id}/upvote`);
       fetchComplaints(); // Refresh UI
     } catch (err) {
       console.error("Upvote failed", err);
@@ -42,7 +42,7 @@ const FeedPage = () => {
 
   const handleComment = async (id, text) => {
     try {
-      await axios.post(`/api/complaints/${id}/comment`, { 
+      await axios.post(`https://api.india247.shashankraj.in/api/complaints/${id}/comment`, { 
         text,
         userName: user?.name || 'Anonymous User',
         userId: user?.uid || 'anonymous_id'
@@ -55,7 +55,7 @@ const FeedPage = () => {
 
   const handleShare = async (id) => {
     try {
-      await axios.post(`/api/complaints/${id}/share`);
+      await axios.post(`https://api.india247.shashankraj.in/api/complaints/${id}/share`);
       alert("Share link copied! Spread the word on WhatsApp, Twitter, and Instagram.");
       fetchComplaints(); // Refresh UI
     } catch (err) {

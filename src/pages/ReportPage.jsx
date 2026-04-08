@@ -752,7 +752,7 @@ Rules for the summary:
         setClassifying(true);
         let currentClassification = null;
         try {
-          const res = await axios.post('/api/complaints/classify-issue', {
+          const res = await axios.post('https://api.india247.shashankraj.in/api/complaints/classify-issue', {
             intent: currentIntent,
             description: issueSummary
           });
@@ -787,7 +787,7 @@ Rules for the summary:
         };
         console.log("Submitting complaint...");
         console.log("Payload:", payload);
-        const response = await axios.post('/api/complaints', payload);
+        const response = await axios.post('https://api.india247.shashankraj.in/api/complaints', payload);
         console.log("Complaint saved:", response.data);
 
       } catch (err) {
@@ -805,7 +805,7 @@ Rules for the summary:
         setClassifying(true);
         let currentClassification = null;
         try {
-          const res = await axios.post('/api/complaints/classify-issue', {
+          const res = await axios.post('https://api.india247.shashankraj.in/api/complaints/classify-issue', {
             intent: currentIntent,
             description: issueSummary
           });
@@ -840,7 +840,7 @@ Rules for the summary:
         };
         console.log("Submitting complaint...");
         console.log("Payload:", payload);
-        const response = await axios.post('/api/complaints', payload);
+        const response = await axios.post('https://api.india247.shashankraj.in/api/complaints', payload);
         console.log("Complaint saved:", response.data);
 
       } catch (err) {
