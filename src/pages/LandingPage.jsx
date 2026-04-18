@@ -33,20 +33,28 @@ const CountUp = ({ end, duration = 2000 }) => {
 };
 import { Link } from 'react-router-dom';
 import { Shield, Smartphone, Zap, MapPin, Search, X, Send } from 'lucide-react';
+import axios from 'axios';
 import ComplaintCard from '../components/ComplaintCard';
 import { mockComplaints } from '../data/mockData';
 
 const LandingPage = () => {
   const [isChatOpen, setIsChatOpen] = useState(false);
 
-  const categories = [
-    { name: 'Roads & Potholes', icon: '🕳️', bg: 'bg-orange-50' },
-    { name: 'Garbage & Sanitation', icon: '🗑️', bg: 'bg-green-50' },
-    { name: 'Water & Sewage', icon: '💧', bg: 'bg-blue-50' },
-    { name: 'Streetlights', icon: '💡', bg: 'bg-yellow-50' },
-    { name: 'Parks', icon: '🌳', bg: 'bg-emerald-50' },
-    { name: 'Public Safety', icon: '🚨', bg: 'bg-red-50' },
-  ];
+  const [recentComplaints, setRecentComplaints] = useState([]);
+
+  useEffect(() => {
+    const fetchTopComplaints = async () => {
+      try {
+        const response = await axios.get('https://api.india247.shashankraj.in/api/complaints/feed?sort=upvotes');
+        setRecentComplaints(response.data.slice(0, 3));
+      } catch (error) {
+        console.error("Failed to fetch top complaints:", error);
+        // Fallback to mock data if API fails
+        setRecentComplaints(mockComplaints.slice(0, 3));
+      }
+    };
+    fetchTopComplaints();
+  }, []);
 
   return (
     <div className="pt-20">
@@ -180,29 +188,6 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* Issue Categories */}
-      <section className="py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-end mb-10">
-            <div>
-              <h2 className="text-3xl font-bold text-navy mb-2">Issue Categories</h2>
-              <p className="text-gray-500">Select an issue to report instantly.</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-            {categories.map((cat, i) => (
-              <div key={i} className={`${cat.bg} rounded-2xl p-6 hover:-translate-y-1 transition-transform cursor-pointer group`}>
-                <div className="text-4xl mb-4 group-hover:scale-110 transition-transform">{cat.icon}</div>
-                <h3 className="font-bold text-navy mb-4">{cat.name}</h3>
-                <Link to="/report" className="text-sm font-semibold text-saffron flex items-center gap-1 group-hover:gap-2 transition-all">
-                  Report Now <span>→</span>
-                </Link>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
 
       {/* Community Feed Preview */}
       <section className="py-20 bg-gray-50">
@@ -213,8 +198,8 @@ const LandingPage = () => {
           </div>
 
           <div className="grid md:grid-cols-3 gap-6 mb-10">
-            {mockComplaints.slice(0, 3).map(complaint => (
-              <ComplaintCard key={complaint.id} complaint={complaint} />
+            {(recentComplaints.length > 0 ? recentComplaints : mockComplaints.slice(0, 3)).map(complaint => (
+              <ComplaintCard key={complaint._id || complaint.id} complaint={complaint} />
             ))}
           </div>
 
