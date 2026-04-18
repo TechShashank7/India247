@@ -87,7 +87,7 @@ const LandingPage = () => {
           </div>
 
           {/* Phone Mockup Frame */}
-          <div className="relative mx-auto w-full max-w-[320px] aspect-[9/19] bg-white rounded-[3rem] shadow-2xl border-[8px] border-gray-900 overflow-hidden transform md:rotate-2 hover:rotate-0 transition-transform duration-500">
+          <div className="hidden md:block relative mx-auto w-full max-w-[320px] aspect-[9/19] bg-white rounded-[3rem] shadow-2xl border-[8px] border-gray-900 overflow-hidden transform md:rotate-2 hover:rotate-0 transition-transform duration-500">
             {/* Notch */}
             <div className="absolute top-0 inset-x-0 h-6 bg-gray-900 w-32 mx-auto rounded-b-3xl z-20"></div>
 
