@@ -1,19 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X } from 'lucide-react';
+import { LogOut, Star } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { signOut } from 'firebase/auth';
 import { auth } from '../firebase';
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [profilePopupOpen, setProfilePopupOpen] = useState(false);
+  const [points, setPoints] = useState(0);
   const location = useLocation();
   const { user } = useAuth();
 
   const handleLogout = async () => {
     try {
       await signOut(auth);
+      setProfilePopupOpen(false);
     } catch (error) {
       console.error('Logout failed', error);
     }
@@ -26,6 +28,16 @@ const Navbar = () => {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Fetch points if user is logged in (for the profile popup)
+  useEffect(() => {
+    if (user && user.role !== 'officer') {
+      fetch(`https://api.india247.shashankraj.in/api/complaints/user/points/${encodeURIComponent(user.name)}`)
+        .then(res => res.json())
+        .then(data => setPoints(data.points || 0))
+        .catch(err => console.error("Failed to fetch points in navbar", err));
+    }
+  }, [user]);
 
   const navLinks = [
     { name: 'Home', path: '/' },
@@ -42,6 +54,12 @@ const Navbar = () => {
     return link.roles.includes(user.role);
   });
 
+  const userName = user?.name || "Citizen";
+  const words = userName.trim().split(/\s+/);
+  const initials = words.length >= 2 
+    ? (words[0][0] + words[1][0]).toUpperCase() 
+    : (words[0]?.[0] || 'C').toUpperCase();
+
   return (
     <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${
       isScrolled ? 'bg-white/80 backdrop-blur-md shadow-sm border-b border-gray-100' : 'bg-transparent'
@@ -49,12 +67,14 @@ const Navbar = () => {
       <div className="px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center gap-2">
-            <Link to="/" className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-saffron rounded-full flex items-center justify-center text-white font-bold text-sm">
+            <Link to="/" className="flex items-center gap-2 group">
+              {/* Hide circle on mobile, show on sm and up */}
+              <div className="w-8 h-8 bg-saffron rounded-full flex items-center justify-center text-white font-bold text-sm hidden sm:flex shrink-0 shadow-sm group-hover:scale-110 transition-transform">
                 I247
               </div>
               <div>
-                <span className="font-bold text-navy text-xl hidden sm:block">India247</span>
+                {/* On mobile, this will be the only visible text logo */}
+                <span className="font-bold text-navy text-xl">India247</span>
               </div>
             </Link>
             <span className="text-xs text-gray-500 hidden md:inline ml-2 border-l border-gray-300 pl-2">
@@ -97,64 +117,62 @@ const Navbar = () => {
             )}
           </div>
 
-          {/* Mobile menu button */}
-          <div className="md:hidden flex items-center">
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="text-navy p-2 rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Mobile Nav */}
-      {mobileMenuOpen && (
-        <div className="md:hidden bg-white border-b border-gray-100 shadow-lg animate-in slide-in-from-top-2">
-          <div className="px-4 py-3 space-y-1">
-            {visibleLinks.map((link) => (
-              <Link
-                key={link.name}
-                to={link.path}
-                onClick={() => setMobileMenuOpen(false)}
-                className={`block px-3 py-2 rounded-md text-base font-medium ${
-                  location.pathname === link.path 
-                    ? 'bg-orange-50 text-saffron' 
-                    : 'text-gray-700 hover:bg-gray-50 hover:text-navy'
-                }`}
+          {/* Mobile Profile Toggle */}
+          <div className="md:hidden flex items-center relative">
+            {user ? (
+              <button
+                onClick={() => setProfilePopupOpen(!profilePopupOpen)}
+                className="w-10 h-10 bg-saffron rounded-full flex items-center justify-center text-white font-bold text-sm shadow-md border-2 border-white focus:outline-none focus:ring-2 focus:ring-saffron/50 transition-all active:scale-90"
               >
-                {link.name}
-              </Link>
-            ))}
-             {user ? (
-              <button 
-                onClick={() => { handleLogout(); setMobileMenuOpen(false); }}
-                className="block w-full text-center mt-2 border border-gray-300 text-gray-700 rounded-xl px-4 py-2.5 font-semibold"
-              >
-                Logout
+                {initials}
               </button>
             ) : (
-              <Link 
-                to="/auth" 
-                onClick={() => setMobileMenuOpen(false)}
-                className="block w-full text-center mt-2 border border-gray-300 text-gray-700 rounded-xl px-4 py-2.5 font-semibold"
-              >
+              <Link to="/auth" className="text-saffron font-bold text-sm border-2 border-saffron rounded-full px-4 py-1.5 hover:bg-saffron hover:text-white transition-all">
                 Login
               </Link>
             )}
-            {(!user || user.role !== 'officer') && (
-              <Link 
-                to="/report" 
-                onClick={() => setMobileMenuOpen(false)}
-                className="block w-full text-center mt-4 bg-saffron text-white rounded-xl px-4 py-2.5 font-semibold"
-              >
-                Report Issue
-              </Link>
+
+            {/* Glassmorphism Profile Popup */}
+            {profilePopupOpen && user && (
+              <>
+                <div 
+                  className="fixed inset-0 z-40" 
+                  onClick={() => setProfilePopupOpen(false)}
+                ></div>
+                <div className="absolute top-14 right-0 w-64 bg-white/70 backdrop-blur-xl border border-white/40 rounded-2xl shadow-[0_8px_32px_0_rgba(31,38,135,0.15)] p-5 z-50 animate-in fade-in slide-in-from-top-2 zoom-in-95 duration-200 origin-top-right">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 bg-saffron rounded-full flex items-center justify-center text-white font-bold text-lg border-2 border-white shadow-sm">
+                      {initials}
+                    </div>
+                    <div className="overflow-hidden">
+                      <p className="font-bold text-navy truncate">{userName}</p>
+                      <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                    </div>
+                  </div>
+
+                  {user.role !== 'officer' && (
+                    <div className="bg-white/50 rounded-xl p-3 mb-4 border border-white/50 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Star size={16} className="text-accent-gold fill-accent-gold" />
+                        <span className="text-xs font-bold text-gray-600 uppercase tracking-wider">Rewards</span>
+                      </div>
+                      <span className="font-black text-navy">{points.toLocaleString()} pts</span>
+                    </div>
+                  )}
+
+                  <button
+                    onClick={handleLogout}
+                    className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-red-50 text-red-600 rounded-xl font-bold text-sm hover:bg-red-100 transition-colors"
+                  >
+                    <LogOut size={16} />
+                    Logout
+                  </button>
+                </div>
+              </>
             )}
           </div>
         </div>
-      )}
+      </div>
     </nav>
   );
 };

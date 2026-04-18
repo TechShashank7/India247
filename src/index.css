@@ -3,13 +3,23 @@
 @import "leaflet/dist/leaflet.css";
 
 @theme {
-  --font-sans: "Inter", "sans-serif";
+  --font-sans: "Manrope", "sans-serif";
+  --font-heading: "Plus Jakarta Sans", "sans-serif";
   
+  --color-primary: #a73300;
+  --color-primary-container: #d14405;
+  --color-secondary: #465f88;
+  --color-secondary-container: #b6d0ff;
   --color-saffron: #E8541A;
   --color-india-green: #1A6B3A;
   --color-navy: #0F3460;
-  --color-background: #F5F5F0;
-  --color-card: #FFFFFF;
+  --color-background: #f7f9fb;
+  --color-surface: #f7f9fb;
+  --color-surface-container-low: #f2f4f6;
+  --color-surface-container: #eceef0;
+  --color-surface-container-high: #e6e8ea;
+  --color-surface-container-highest: #e0e3e5;
+  --color-card: #ffffff;
   --color-accent-gold: #E8B84B;
   
   --color-status-pending-bg: #FEE2D5;
@@ -24,65 +34,73 @@
   --color-status-resolved-text: #065F46;
 
   --shadow-card: 0 1px 4px rgba(0,0,0,0.08);
+  --shadow-ambient: 0 20px 40px rgba(25, 28, 30, 0.06);
 }
 
 @layer base {
   body {
     background-color: var(--color-background);
-    color: #374151;
+    color: #191c1e;
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
   }
   
   h1, h2, h3, h4, h5, h6 {
     color: var(--color-navy);
-    font-weight: 600;
+    font-weight: 700;
+    font-family: var(--font-heading);
+    letter-spacing: -0.02em;
   }
 }
 
 @layer components {
   .card {
     background-color: var(--color-card);
-    border-radius: 1rem;
-    box-shadow: var(--shadow-card);
-    padding: 1.25rem;
+    border-radius: 1.5rem;
+    box-shadow: var(--shadow-ambient);
+    padding: 1.5rem;
+    border: none;
   }
 
   .btn-primary {
-    background-color: var(--color-saffron);
+    background: linear-gradient(to right, var(--color-primary), var(--color-primary-container));
     color: white;
-    border-radius: 0.75rem;
-    padding: 0.75rem 1.5rem;
+    border-radius: 1.5rem;
+    padding: 1rem 2rem;
     font-weight: 600;
-    transition: background-color 0.2s;
+    transition: all 0.2s;
+    border: none;
   }
   .btn-primary:hover {
-    background-color: #d64b16;
+    box-shadow: var(--shadow-ambient);
+    transform: translateY(-2px);
   }
   
   .btn-secondary {
-    background-color: var(--color-india-green);
-    color: white;
-    border-radius: 0.75rem;
-    padding: 0.75rem 1.5rem;
+    background-color: var(--color-secondary-container);
+    color: #3f5881;
+    border-radius: 1.5rem;
+    padding: 1rem 2rem;
     font-weight: 600;
-    transition: background-color 0.2s;
+    transition: all 0.2s;
+    border: none;
   }
   .btn-secondary:hover {
-    background-color: #155b31;
+    background-color: #aec7f6;
+    transform: translateY(-2px);
   }
   
   .btn-outline {
-    border: 1.5px solid var(--color-saffron);
-    color: var(--color-saffron);
+    border: 1px solid rgba(226, 191, 180, 0.2);
+    color: var(--color-primary);
     background-color: transparent;
-    border-radius: 0.75rem;
-    padding: 0.75rem 1.5rem;
+    border-radius: 1.5rem;
+    padding: 1rem 2rem;
     font-weight: 600;
-    transition: background-color 0.2s;
+    transition: all 0.2s;
   }
   .btn-outline:hover {
-    background-color: #fff5f2;
+    background-color: var(--color-surface-container-low);
   }
 
   .status-pill {
@@ -189,4 +207,12 @@
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }

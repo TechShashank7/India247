@@ -1,5 +1,6 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation, Navigate, Link } from 'react-router-dom';
+import { Home, Compass, Plus, Bell, Trophy } from 'lucide-react';
 import Navbar from './components/Navbar';
 import LandingPage from './pages/LandingPage';
 import ReportPage from './pages/ReportPage';
@@ -31,35 +32,67 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   return children;
 };
 
+
 // Simple bottom nav for mobile
 const BottomNav = () => {
   const location = useLocation();
-  const navLinks = [
-    { name: 'Home', path: '/', icon: '🏠' },
-    { name: 'Report', path: '/report', icon: '📸' },
-    { name: 'Map', path: '/map', icon: '🗺️' },
-    { name: 'Feed', path: '/feed', icon: '📱' },
-    { name: 'Rewards', path: '/rewards', icon: '🎁' }
-  ];
-
   const { user } = useAuth();
-
+  
   if(!user || user.role === 'officer' || location.pathname === '/officer') return null;
 
+  const navLinks = [
+    { name: 'Home', path: '/', icon: Home },
+    { name: 'Explore', path: '/map', icon: Compass },
+    { name: 'Report', path: '/report', icon: Plus, isAction: true },
+    { name: 'Activity', path: '/feed', icon: Bell },
+    { name: 'Rewards', path: '/rewards', icon: Trophy }
+  ];
+
   return (
-    <div className="md:hidden fixed bottom-0 w-full bg-white border-t border-gray-100 flex justify-around items-center p-2 z-[999] shadow-[0_-4px_10px_rgba(0,0,0,0.05)] pb-safe">
-      {navLinks.map(link => (
-        <a 
-          key={link.name} 
-          href={link.path}
-          className={`flex flex-col items-center justify-center p-2 w-16 transition-colors ${
-            location.pathname === link.path ? 'text-saffron scale-110' : 'text-gray-400 hover:text-navy'
-          }`}
-        >
-          <span className="text-xl mb-1">{link.icon}</span>
-          <span className="text-[10px] font-bold">{link.name}</span>
-        </a>
-      ))}
+    <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-t border-gray-100 flex justify-around items-center px-2 py-3 z-[999] shadow-[0_-8px_20px_rgba(0,0,0,0.03)] pb-safe">
+      {navLinks.map(link => {
+        const Icon = link.icon;
+        const isActive = location.pathname === link.path;
+        
+        if (link.isAction) {
+          return (
+            <Link 
+              key={link.name} 
+              to={link.path}
+              className="flex flex-col items-center justify-center -mt-10"
+            >
+              <div className={`w-14 h-14 rounded-full flex items-center justify-center shadow-[0_4px_12px_rgba(167,51,0,0.3)] transition-all active:scale-90 ${
+                isActive ? 'bg-saffron text-white' : 'bg-navy text-white'
+              }`}>
+                <Plus size={32} />
+              </div>
+              <span className={`text-[10px] font-bold mt-1.5 ${isActive ? 'text-saffron' : 'text-navy'}`}>
+                {link.name}
+              </span>
+            </Link>
+          );
+        }
+
+        return (
+          <Link 
+            key={link.name} 
+            to={link.path}
+            className={`relative flex flex-col items-center justify-center py-2 px-1 w-16 transition-all duration-300 ${
+              isActive ? 'text-saffron' : 'text-gray-400'
+            }`}
+          >
+            {isActive && (
+              <span className="absolute inset-x-0 -top-1 mx-auto w-8 h-1 bg-saffron rounded-full animate-in fade-in slide-in-from-top-1"></span>
+            )}
+            <div className={`p-2 rounded-2xl transition-colors duration-300 ${isActive ? 'bg-orange-50' : 'bg-transparent'}`}>
+              <Icon size={22} strokeWidth={isActive ? 2.5 : 2} />
+            </div>
+            <span className={`text-[10px] font-bold mt-1 uppercase tracking-tighter ${isActive ? 'opacity-100' : 'opacity-60'}`}>
+              {link.name}
+            </span>
+          </Link>
+        );
+      })}
     </div>
   );
 };
