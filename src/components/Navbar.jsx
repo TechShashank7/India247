@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LogOut, Star } from 'lucide-react';
+import { LogOut, Star, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { signOut } from 'firebase/auth';
 import { auth } from '../firebase';
@@ -11,6 +11,8 @@ const Navbar = () => {
   const [points, setPoints] = useState(0);
   const location = useLocation();
   const { user } = useAuth();
+  
+  const isReportPage = location.pathname === '/report';
 
   const handleLogout = async () => {
     try {
@@ -62,24 +64,31 @@ const Navbar = () => {
 
   return (
     <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${
-      isScrolled ? 'bg-white/80 backdrop-blur-md shadow-sm border-b border-gray-100' : 'bg-transparent'
+      isScrolled || isReportPage ? 'bg-white/80 backdrop-blur-md shadow-sm border-b border-gray-100' : 'bg-transparent'
     }`}>
       <div className="px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center gap-2">
-            <Link to="/" className="flex items-center gap-2 group">
-              {/* Hide circle on mobile, show on sm and up */}
-              <div className="w-8 h-8 bg-saffron rounded-full flex items-center justify-center text-white font-bold text-sm hidden sm:flex shrink-0 shadow-sm group-hover:scale-110 transition-transform">
-                I247
-              </div>
-              <div>
-                {/* On mobile, this will be the only visible text logo */}
-                <span className="font-bold text-navy text-xl">India247</span>
-              </div>
-            </Link>
-            <span className="text-xs text-gray-500 hidden md:inline ml-2 border-l border-gray-300 pl-2">
-              Apna Shehar, Apni Zimmedari
-            </span>
+            {isReportPage ? (
+              <Link to="/" className="flex items-center gap-2 p-2 -ml-2 hover:bg-gray-100 rounded-full transition-colors">
+                <ArrowLeft size={24} className="text-navy" />
+                <span className="font-bold text-navy hidden sm:inline">Back</span>
+              </Link>
+            ) : (
+              <Link to="/" className="flex items-center gap-2 group">
+                <div className="w-8 h-8 bg-saffron rounded-full flex items-center justify-center text-white font-bold text-sm hidden sm:flex shrink-0 shadow-sm group-hover:scale-110 transition-transform">
+                  I247
+                </div>
+                <div>
+                  <span className="font-bold text-navy text-xl">India247</span>
+                </div>
+              </Link>
+            )}
+            {!isReportPage && (
+              <span className="text-xs text-gray-500 hidden md:inline ml-2 border-l border-gray-300 pl-2">
+                Apna Shehar, Apni Zimmedari
+              </span>
+            )}
           </div>
 
           {/* Desktop Nav */}
