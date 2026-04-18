@@ -258,12 +258,10 @@ const LandingPage = () => {
         </div>
       </footer>
 
-      {/* Floating Chatbot Button & Window */}
+      {/* Floating Chatbot Button & Window - Commented out for now
       <div className="fixed bottom-6 right-6 z-[1000] flex flex-col items-end">
-        {/* Chatbot Window */}
         {isChatOpen && (
           <div className="mb-4 w-80 sm:w-96 bg-white/70 backdrop-blur-2xl border border-white/50 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.2)] rounded-3xl overflow-hidden animate-in slide-in-from-bottom-5 fade-in duration-300 transform origin-bottom-right">
-            {/* Chatbot Header */}
             <div className="bg-gradient-to-r from-saffron to-[#d64b16] p-4 text-white flex justify-between items-center shadow-md relative z-10">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-xl shadow-inner border border-white/30 backdrop-blur-sm">
@@ -283,7 +281,6 @@ const LandingPage = () => {
               </button>
             </div>
 
-            {/* Chatbot Body */}
             <div className="p-5 h-80 overflow-y-auto bg-gray-50/40 flex flex-col gap-4">
               <div className="flex justify-start">
                 <div className="bg-white/90 backdrop-blur-md border border-white shadow-sm p-4 rounded-2xl rounded-tl-sm text-sm text-navy font-medium max-w-[85%] animate-in fade-in slide-in-from-left-2 duration-300">
@@ -292,7 +289,6 @@ const LandingPage = () => {
               </div>
             </div>
 
-            {/* Chatbot Input */}
             <div className="p-4 bg-white/80 backdrop-blur-xl border-t border-white/50">
               <div className="relative flex items-center">
                 <input
@@ -308,7 +304,6 @@ const LandingPage = () => {
           </div>
         )}
 
-        {/* Floating Button */}
         <div className="group relative">
           {!isChatOpen && (
             <div className="absolute bottom-full right-0 mb-4 w-max opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
@@ -342,6 +337,7 @@ const LandingPage = () => {
           `}} />
         </div>
       </div>
+      */}
     </div>
   );
 };
