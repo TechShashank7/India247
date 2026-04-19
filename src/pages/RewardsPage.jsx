@@ -24,6 +24,7 @@ function getNextLevel(points) {
 
 // Rewards catalog (UI data — these define what can be redeemed)
 const rewardsCatalog = [
+  { id: 0, title: "₹5 Instant Cashback", pts: 70, icon: "💸" },
   { id: 1, title: "Metro Smart Card", pts: 200, icon: "🚇" },
   { id: 2, title: "Mobile Recharge ₹50", pts: 150, icon: "📱" },
   { id: 3, title: "Uber Ride 20% Off", pts: 350, icon: "🛵" },
@@ -50,6 +51,9 @@ const RewardsPage = () => {
   const [breakdown, setBreakdown] = useState({ filed: 0, resolved: 0, totalUpvotes: 0, totalComments: 0 });
   const [leaderboard, setLeaderboard] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [redeemedRewards, setRedeemedRewards] = useState([]);
+  const [selectedReward, setSelectedReward] = useState(null);
+  const [showModal, setShowModal] = useState(false);
 
   const { user } = useAuth();
   const userName = user?.name || "Citizen";
@@ -78,6 +82,19 @@ const RewardsPage = () => {
       setLoading(false);
     });
   }, []);
+
+  const handleRedeemClick = (reward) => {
+    if (points < reward.pts) return;
+    setSelectedReward(reward);
+    setShowModal(true);
+  };
+
+  const confirmRedeem = () => {
+    if (!selectedReward) return;
+    setPoints(prev => prev - selectedReward.pts);
+    setRedeemedRewards(prev => [...prev, selectedReward.id]);
+    setShowModal(false);
+  };
 
   const badge = getBadge(points);
   const nextLevel = getNextLevel(points);
@@ -116,7 +133,7 @@ const RewardsPage = () => {
               </div>
             </div>
             <div>
-              <h1 className="text-3xl font-bold mb-1">{userName}</h1>
+              <h1 className="text-3xl font-bold mb-1 text-white">{userName}</h1>
               <p className="text-gray-300 flex items-center gap-2">
                 <Trophy size={16} className="text-accent-gold" />
                 {badge}
@@ -244,38 +261,57 @@ const RewardsPage = () => {
 
         {/* Step 8: Redeem Rewards - Uses REAL points */}
         {tab === 'rewards' && (
-          <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-6 animate-in fade-in">
-            {rewardsCatalog.map(reward => {
-              const canAfford = points >= reward.pts;
-              return (
-                <div key={reward.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col hover:-translate-y-1 transition-transform">
-                  <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center text-3xl mb-4 shadow-inner">
-                    {reward.icon}
+          <>
+            <div className="mb-6 text-center text-lg font-bold text-navy">
+              You have {points} points
+            </div>
+            <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-6 animate-in fade-in">
+              {rewardsCatalog.map(reward => {
+                const canAfford = points >= reward.pts;
+                const isRedeemed = redeemedRewards.includes(reward.id);
+                const isLocked = points < reward.pts;
+                
+                return (
+                  <div key={reward.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col hover:-translate-y-1 transition-transform">
+                    <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center text-3xl mb-4 shadow-inner">
+                      {reward.icon}
+                    </div>
+                    <h3 className="font-bold text-navy text-lg leading-tight mb-2">{reward.title}</h3>
+                    <div className="flex items-center gap-1.5 text-accent-gold font-black mb-2">
+                      <Star size={16} className="fill-current" />
+                      <span>{reward.pts} pts</span>
+                    </div>
+                    {/* Show how many more points needed */}
+                    {!canAfford && !isRedeemed && (
+                      <p className="text-xs text-gray-400 mb-4">
+                        Need {reward.pts - points} more points
+                      </p>
+                    )}
+                    {(canAfford || isRedeemed) && <div className="mb-4" />}
+                    <div className="mt-auto">
+                      <button
+                        disabled={isLocked || isRedeemed}
+                        onClick={() => handleRedeemClick(reward)}
+                        className={`w-full py-3 rounded-xl font-bold transition-colors ${
+                          isRedeemed
+                            ? "bg-green-100 text-green-700"
+                            : isLocked
+                            ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                            : "bg-saffron text-white shadow-md hover:bg-orange-600 hover:scale-105"
+                        }`}
+                      >
+                        {isRedeemed
+                          ? "Redeemed ✅"
+                          : isLocked
+                          ? `Need ${reward.pts}`
+                          : "Redeem Now"}
+                      </button>
+                    </div>
                   </div>
-                  <h3 className="font-bold text-navy text-lg leading-tight mb-2">{reward.title}</h3>
-                  <div className="flex items-center gap-1.5 text-accent-gold font-black mb-2">
-                    <Star size={16} className="fill-current" />
-                    <span>{reward.pts} pts</span>
-                  </div>
-                  {/* Show how many more points needed */}
-                  {!canAfford && (
-                    <p className="text-xs text-gray-400 mb-4">
-                      Need {reward.pts - points} more points
-                    </p>
-                  )}
-                  {canAfford && <div className="mb-4" />}
-                  <div className="mt-auto">
-                    <button 
-                      disabled={!canAfford}
-                      className={`w-full py-3 rounded-xl font-bold transition-colors ${canAfford ? 'bg-saffron text-white shadow-md hover:bg-orange-600' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
-                    >
-                      {canAfford ? 'Redeem Now' : 'Not Enough Points'}
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          </>
         )}
 
         {/* Step 9: Leaderboard - Real data from API */}
@@ -380,6 +416,45 @@ const RewardsPage = () => {
           </div>
         )}
 
+        {showModal && selectedReward && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+            <div className="bg-white/20 backdrop-blur-xl border border-white/30 shadow-2xl rounded-2xl p-6 w-[90%] max-w-md text-center animate-in zoom-in-95 duration-200">
+              <h2 className="text-xl font-bold text-white mb-2">
+                🎉 Reward Unlocked!
+              </h2>
+
+              <p className="text-white/80 mb-4">
+                {selectedReward.title}
+              </p>
+
+              <div className="bg-white/30 rounded-lg p-3 mb-4">
+                <p className="text-white font-mono text-lg tracking-wider">
+                  IND247-{Math.floor(1000 + Math.random() * 9000)}
+                </p>
+              </div>
+
+              <p className="text-sm text-white/70 mb-6">
+                Show this code at redemption
+              </p>
+
+              <div className="flex gap-3 justify-center">
+                <button
+                  onClick={confirmRedeem}
+                  className="bg-green-500 text-white px-4 py-2 rounded-lg font-semibold hover:scale-105 transition"
+                >
+                  Confirm
+                </button>
+
+                <button
+                  onClick={() => setShowModal(false)}
+                  className="bg-white/20 text-white px-4 py-2 rounded-lg font-semibold hover:bg-white/30 transition"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
