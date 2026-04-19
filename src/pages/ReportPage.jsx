@@ -465,6 +465,7 @@ const ReportPage = () => {
   // ── Refs
   const messagesEndRef   = useRef(null);
   const fileInputRef     = useRef(null);
+  const cameraInputRef   = useRef(null);
   const conversationRef  = useRef([]); // full history for Gemini
   const lastCallTimeRef  = useRef(0);
 
@@ -876,10 +877,10 @@ Rules for the summary:
   const sidebarStep = step === 1 ? 1 : step === 2 ? 2 : step === 3 ? 3 : step === 4 ? 4 : 5;
 
   return (
-    <div className="pt-16 min-h-screen bg-[#f7f9fb] flex font-sans">
+    <div className="pt-16 h-[100dvh] bg-[#f7f9fb] flex font-sans overflow-hidden">
 
       {/* ── Sidebar ── */}
-      <div className="hidden md:block w-80 bg-white border-r border-gray-100 p-8 h-[calc(100vh-64px)] overflow-y-auto sticky top-16">
+      <div className="hidden md:block w-80 bg-white border-r border-gray-100 p-8 h-full overflow-y-auto sticky top-16">
         <h2 className="text-xl font-bold text-navy mb-8">Filing Complaint</h2>
 
         {/* Steps */}
@@ -950,7 +951,7 @@ Rules for the summary:
       </div>
 
       {/* ── Chat Area ── */}
-      <div className="flex-1 flex flex-col h-[calc(100vh-64px)] relative">
+      <div className="flex-1 flex flex-col h-full relative">
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
           <div className="max-w-3xl mx-auto">
 
@@ -965,8 +966,9 @@ Rules for the summary:
                         onClick={() => {
                           setStep(2);
                           setFormData(prev => ({...prev, imageVerified: false, imageData: null}));
-                          setMessages(prev => prev.filter((m, i) => i !== idx));
+                          setMessages(prev => prev.slice(0, idx));
                           if (fileInputRef.current) fileInputRef.current.value = '';
+                          if (cameraInputRef.current) cameraInputRef.current.value = '';
                         }}
                         className="self-start text-xs font-bold text-gray-500 hover:text-saffron transition-colors bg-white px-4 py-2 border border-gray-200 rounded-full shadow-[0_2px_8px_rgba(0,0,0,0.04)] active:scale-95"
                       >
@@ -1164,10 +1166,7 @@ Rules for the summary:
 
               {/* Step 2: Photo upload */}
               {step === 2 && (
-                <div
-                  className="border-2 border-dashed border-gray-300 rounded-2xl p-8 text-center hover:bg-gray-50 transition-colors cursor-pointer group"
-                  onClick={() => fileInputRef.current?.click()}
-                >
+                <div className="px-2">
                   <input
                     type="file"
                     ref={fileInputRef}
@@ -1175,19 +1174,49 @@ Rules for the summary:
                     className="hidden"
                     accept="image/*"
                   />
+                  <input
+                    type="file"
+                    ref={cameraInputRef}
+                    onChange={handlePhotoUpload}
+                    className="hidden"
+                    accept="image/*"
+                    capture="environment"
+                  />
                   {uploadingImage ? (
-                    <div className="flex flex-col items-center">
+                    <div className="flex flex-col items-center py-6">
                       <div className="w-10 h-10 border-4 border-saffron border-t-transparent rounded-full animate-spin mb-3"></div>
                       <p className="text-saffron font-bold text-sm">Uploading photo...</p>
                     </div>
                   ) : (
-                    <div className="flex flex-col items-center">
-                      <div className="w-16 h-16 bg-orange-50 text-saffron rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                        <Camera size={28} />
+                    <>
+                      {/* Desktop drag and drop */}
+                      <div
+                        className="hidden md:flex flex-col items-center border-2 border-dashed border-gray-300 rounded-2xl p-8 text-center hover:bg-gray-50 transition-colors cursor-pointer group"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <div className="w-16 h-16 bg-orange-50 text-saffron rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                          <Camera size={28} />
+                        </div>
+                        <p className="font-semibold text-gray-700 mb-1">Click to upload a photo of the issue</p>
+                        <p className="text-sm text-gray-500">Supports JPG, PNG · Must show the issue you described</p>
                       </div>
-                      <p className="font-semibold text-gray-700 mb-1">Click to upload a photo of the issue</p>
-                      <p className="text-sm text-gray-500">Supports JPG, PNG · Must show the issue you described</p>
-                    </div>
+
+                      {/* Mobile Buttons */}
+                      <div className="md:hidden flex gap-3">
+                        <button
+                          onClick={() => cameraInputRef.current?.click()}
+                          className="flex-1 py-3 px-4 rounded-xl font-bold bg-gradient-to-br from-saffron to-[#d14405] text-white shadow-[0_4px_12px_rgba(232,84,26,0.2)] active:scale-95 transition-all text-sm"
+                        >
+                          Take a Photo
+                        </button>
+                        <button
+                          onClick={() => fileInputRef.current?.click()}
+                          className="flex-1 py-3 px-4 rounded-xl font-bold bg-white text-saffron border border-gray-200 shadow-sm hover:bg-orange-50 active:scale-95 transition-all text-sm"
+                        >
+                          Choose from Gallery
+                        </button>
+                      </div>
+                    </>
                   )}
                 </div>
               )}
