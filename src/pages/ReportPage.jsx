@@ -442,7 +442,7 @@ const ReportPage = () => {
   // ── UI state
   const [step,               setStep]               = useState(1); // 1=chat 2=photo 3=verifying 4=location 5=anon 6=done
   const [messages,           setMessages]           = useState([
-    { isBot: true, text: "Namaste! 🙏 I'm Meera, your India247 assistant. What civic issue are you facing today?" }
+    { isBot: true, text: "Namaste! 🙏 I'm Meera, your India247 assistant. What civic issue are you facing today?", typing: true }
   ]);
   const [inputText,          setInputText]          = useState('');
   const [isTyping,           setIsTyping]           = useState(false);
@@ -478,7 +478,7 @@ const ReportPage = () => {
       setIsTyping(true);
       setTimeout(() => {
         setIsTyping(false);
-        setMessages(prev => [...prev, { isBot: true, text }]);
+        setMessages(prev => [...prev, { isBot: true, text, typing: true }]);
         resolve();
       }, delay);
     });
@@ -534,7 +534,7 @@ const ReportPage = () => {
       if (intent) setDetectedIntent(intent);
 
       setIsTyping(false);
-      setMessages(prev => [...prev, { isBot: true, text: cleanText }]);
+      setMessages(prev => [...prev, { isBot: true, text: cleanText, typing: true }]);
 
       if (outOfScope) {
         setIsOutOfScope(true);
@@ -876,7 +876,7 @@ Rules for the summary:
   const sidebarStep = step === 1 ? 1 : step === 2 ? 2 : step === 3 ? 3 : step === 4 ? 4 : 5;
 
   return (
-    <div className="pt-16 min-h-screen bg-gray-50 flex">
+    <div className="pt-16 min-h-screen bg-[#f7f9fb] flex font-sans">
 
       {/* ── Sidebar ── */}
       <div className="hidden md:block w-80 bg-white border-r border-gray-100 p-8 h-[calc(100vh-64px)] overflow-y-auto sticky top-16">
@@ -956,9 +956,24 @@ Rules for the summary:
 
             {/* Messages */}
             {messages.map((msg, idx) => (
-              <ChatBubble key={idx} isBot={msg.isBot} message={msg.text}>
+              <ChatBubble key={idx} isBot={msg.isBot} message={msg.text} typing={msg.typing}>
                 {msg.isImage && msg.imageUrl && (
-                  <img src={msg.imageUrl} alt="Uploaded" className="mt-2 w-40 h-40 object-cover rounded-lg border-2 border-white shadow" />
+                  <div className="mt-2 flex flex-col gap-2">
+                    <img src={msg.imageUrl} alt="Uploaded" className="w-48 h-48 object-cover rounded-xl border border-gray-100 shadow-sm" />
+                    {step >= 3 && step < 5 && (
+                      <button 
+                        onClick={() => {
+                          setStep(2);
+                          setFormData(prev => ({...prev, imageVerified: false, imageData: null}));
+                          setMessages(prev => prev.filter((m, i) => i !== idx));
+                          if (fileInputRef.current) fileInputRef.current.value = '';
+                        }}
+                        className="self-start text-xs font-bold text-gray-500 hover:text-saffron transition-colors bg-white px-4 py-2 border border-gray-200 rounded-full shadow-[0_2px_8px_rgba(0,0,0,0.04)] active:scale-95"
+                      >
+                        Retake Photo
+                      </button>
+                    )}
+                  </div>
                 )}
               </ChatBubble>
             ))}
@@ -966,7 +981,7 @@ Rules for the summary:
             {/* Typing indicator */}
             {isTyping && !classifying && (
               <ChatBubble isBot={true}>
-                <div className="flex space-x-1 items-center h-4">
+                <div className="flex space-x-1.5 items-center h-4 ml-1">
                   <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
                   <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
                   <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
@@ -986,13 +1001,13 @@ Rules for the summary:
 
             {/* AI Verification panel */}
             {(aiVerifying || (verificationResult && step === 3)) && (
-              <div className="ml-12 mr-4 max-w-sm card mb-4 border border-indigo-100 bg-indigo-50/50">
-                <div className="flex items-center gap-3 font-semibold text-navy mb-4">
+              <div className="ml-10 mr-4 max-w-sm rounded-2xl p-5 mb-6 border border-indigo-100 bg-white shadow-[0_10px_30px_rgba(79,70,229,0.08)]">
+                <div className="flex items-center gap-3 font-bold text-gray-800 mb-4 font-heading">
                   {aiVerifying
-                    ? <Loader className="text-indigo-600 animate-spin" size={20} />
-                    : <span className="text-indigo-600 text-lg">🔍</span>
+                    ? <Loader className="text-indigo-500 animate-spin" size={20} />
+                    : <span className="text-indigo-500 text-lg">🔍</span>
                   }
-                  <span>{aiVerifying ? 'AI Verification in Progress...' : 'Verification Result'}</span>
+                  <span>{aiVerifying ? 'AI Verifying...' : 'Verification Result'}</span>
                 </div>
 
                 {aiVerifying && (
@@ -1099,26 +1114,50 @@ Rules for the summary:
 
         {/* ── Bottom Input Area ── */}
         {!aiVerifying && step !== 6 && !isTyping && !isOutOfScope && (
-          <div className="p-4 bg-white border-t border-gray-100 shrink-0">
+          <div className="p-4 sm:pb-8 bg-[#f7f9fb]/90 backdrop-blur-xl border-t border-gray-200/50 shrink-0 z-10 sticky bottom-0">
             <div className="max-w-3xl mx-auto">
 
               {/* Step 1: Free text chat */}
               {step === 1 && (
-                <form onSubmit={handleSendMessage} className="flex gap-2">
+                <form onSubmit={handleSendMessage} className="flex items-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    aria-label="Add Photo"
+                    title="Upload photo early"
+                    className="flex-shrink-0 w-12 h-12 rounded-full bg-white text-saffron shadow-[0_4px_12px_rgba(0,0,0,0.04)] outline outline-1 outline-gray-200 flex items-center justify-center transition-transform active:scale-95 hover:bg-gray-50"
+                  >
+                    <Camera size={22} />
+                  </button>
                   <input
-                    type="text"
-                    value={inputText}
-                    onChange={(e) => setInputText(e.target.value)}
-                    placeholder="Describe your issue in your own words..."
-                    className="flex-1 input-field"
-                    autoFocus
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handlePhotoUpload}
+                    className="hidden"
+                    accept="image/*"
                   />
+                  <div className="flex-1 bg-white rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.04)] outline outline-1 outline-gray-200 flex items-center px-4 min-h-[3rem]">
+                    <textarea
+                      value={inputText}
+                      onChange={(e) => setInputText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSendMessage(e);
+                        }
+                      }}
+                      placeholder="Type your message..."
+                      className="w-full bg-transparent border-none focus:ring-0 resize-none font-sans text-[15px] text-gray-800 placeholder:text-gray-400 py-3 max-h-32 outline-none"
+                      rows="1"
+                      autoFocus
+                    ></textarea>
+                  </div>
                   <button
                     type="submit"
                     disabled={!inputText.trim()}
-                    className="bg-navy text-white rounded-xl px-5 hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-shrink-0 w-12 h-12 rounded-full bg-gradient-to-br from-saffron to-[#d14405] text-white shadow-[0_4px_12px_rgba(232,84,26,0.2)] flex items-center justify-center transition-transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <Send size={20} />
+                    <Send size={20} className="ml-1" />
                   </button>
                 </form>
               )}
@@ -1139,7 +1178,7 @@ Rules for the summary:
                   {uploadingImage ? (
                     <div className="flex flex-col items-center">
                       <div className="w-10 h-10 border-4 border-saffron border-t-transparent rounded-full animate-spin mb-3"></div>
-                      <p className="text-saffron font-semibold">Uploading photo...</p>
+                      <p className="text-saffron font-bold text-sm">Uploading photo...</p>
                     </div>
                   ) : (
                     <div className="flex flex-col items-center">
