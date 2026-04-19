@@ -4,6 +4,7 @@ import ComplaintCard from '../components/ComplaintCard';
 import ImageModal from '../components/ImageModal';
 import { citizens } from '../data/mockData';
 import { useAuth } from '../context/AuthContext';
+import { useLocation } from 'react-router-dom';
 
 const FeedPage = () => {
   const [complaints, setComplaints] = useState([]);
@@ -14,6 +15,7 @@ const FeedPage = () => {
   const [category, setCategory] = useState('All');
   const [showComments, setShowComments] = useState(null);
   const { user } = useAuth();
+  const location = useLocation();
 
   const fetchComplaints = async () => {
     try {
@@ -30,6 +32,20 @@ const FeedPage = () => {
   useEffect(() => {
     fetchComplaints();
   }, [sort, category]);
+
+  useEffect(() => {
+    if (location.state?.scrollToComplaintId && complaints.length > 0) {
+      setTimeout(() => {
+        const el = document.getElementById(`complaint-${location.state.scrollToComplaintId}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          el.classList.add('ring-4', 'ring-saffron', 'ring-opacity-50', 'transition-all', 'duration-1000', 'rounded-2xl');
+          setTimeout(() => el.classList.remove('ring-4', 'ring-saffron', 'ring-opacity-50'), 2000);
+          window.history.replaceState({}, document.title);
+        }
+      }, 500);
+    }
+  }, [complaints, location.state]);
 
   const handleUpvote = async (id) => {
     try {
@@ -129,16 +145,17 @@ const FeedPage = () => {
             ) : (
               <div className="space-y-6">
                 {complaints.map(complaint => (
-                  <ComplaintCard 
-                    key={complaint._id} 
-                    complaint={complaint} 
-                    onImageClick={handleImageClick}
-                    onUpvote={handleUpvote}
-                    onComment={handleComment}
-                    onShare={handleShare}
-                    showComments={showComments}
-                    toggleComments={toggleComments}
-                  />
+                  <div key={complaint._id} id={`complaint-${complaint._id}`}>
+                    <ComplaintCard 
+                      complaint={complaint} 
+                      onImageClick={handleImageClick}
+                      onUpvote={handleUpvote}
+                      onComment={handleComment}
+                      onShare={handleShare}
+                      showComments={showComments}
+                      toggleComments={toggleComments}
+                    />
+                  </div>
                 ))}
               </div>
             )}
