@@ -46,7 +46,8 @@ const LandingPage = () => {
     const fetchTopComplaints = async () => {
       try {
         const response = await axios.get('https://api.india247.shashankraj.in/api/complaints/feed?sort=upvotes');
-        setRecentComplaints(response.data.slice(0, 3));
+        const data = Array.isArray(response.data) ? response.data : (response.data.data || []);
+        setRecentComplaints(data.slice(0, 3));
       } catch (error) {
         console.error("Failed to fetch top complaints:", error);
         // Fallback to mock data if API fails

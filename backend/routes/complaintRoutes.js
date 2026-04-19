@@ -237,7 +237,7 @@ router.get("/officer/performance/:name", async (req, res) => {
 // Get Feed API
 router.get("/feed", async (req, res) => {
   try {
-    const { sort, category, lat, lng, page = 1, limit = 5 } = req.query;
+    const { sort, category, lat, lng } = req.query;
 
     let complaints = await Complaint.find();
 
@@ -246,7 +246,7 @@ router.get("/feed", async (req, res) => {
       complaints = complaints.filter(c => c.category === category);
     }
 
-    // Near Me
+    // Near Me (Basic distance approx)
     if (lat && lng) {
       const userLat = parseFloat(lat);
       const userLng = parseFloat(lng);
@@ -256,7 +256,7 @@ router.get("/feed", async (req, res) => {
           Math.pow(c.lat - userLat, 2) +
           Math.pow(c.lng - userLng, 2)
         );
-        return dist < 0.1;
+        return dist < 0.1; // roughly 10km
       });
     }
 
@@ -277,15 +277,7 @@ router.get("/feed", async (req, res) => {
       });
     }
 
-    // ✅ PAGINATION LOGIC
-    const startIndex = (page - 1) * limit;
-    const paginatedComplaints = complaints.slice(startIndex, startIndex + parseInt(limit));
-
-    res.json({
-      data: paginatedComplaints,
-      hasMore: startIndex + paginatedComplaints.length < complaints.length
-    });
-
+    res.json(complaints);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
