@@ -269,12 +269,12 @@ const MapPage = () => {
   return (
     <div className="fixed inset-0 top-16 bg-gray-50 flex flex-col md:flex-row overflow-hidden overscroll-none">
       {/* LEFT SECTION (MAP AREA) */}
-      <div className="flex-1 md:w-[70%] flex flex-col h-full overflow-hidden">
+      <div className="flex-1 md:w-[70%] flex flex-col h-full">
         {/* Filters & Refresh Bar */}
-        <div className="bg-white border-b border-gray-100 shadow-sm z-10 px-4 py-2 shrink-0">
+        <div className="bg-white border-b border-gray-100 shadow-sm z-10 px-4 py-2">
           <div className="flex items-center justify-between gap-2 max-w-full">
-            {/* Non-scrollable Filters wrapping on small screens */}
-            <div className="flex items-center gap-1.5 flex-wrap py-0.5">
+            {/* Scrollable Filters on the left */}
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
               {['All', 'Pending', 'In Progress', 'Resolved'].map(f => (
                 <button
                   key={f}
@@ -333,7 +333,7 @@ const MapPage = () => {
       {/* MOBILE INSIGHTS FAB - Outside map container to ensure visibility */}
       <button
         onClick={() => setIsPanelOpen(true)}
-        className="md:hidden fixed bottom-24 right-5 bg-navy text-white px-6 py-3.5 rounded-full shadow-[0_8px_25px_rgba(15,52,96,0.3)] z-[1001] font-bold text-sm flex items-center gap-2 animate-in slide-in-from-bottom-4 duration-500"
+        className="md:hidden fixed bottom-32 right-5 bg-navy text-white px-6 py-3.5 rounded-full shadow-[0_8px_25px_rgba(15,52,96,0.3)] z-[1001] font-bold text-sm flex items-center gap-2 animate-in slide-in-from-bottom-4 duration-500"
       >
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m3 3 18 18"/><path d="M15 3h6v6"/><path d="M9 21H3v-6"/></svg>
         Insights
