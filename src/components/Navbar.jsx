@@ -105,9 +105,11 @@ const Navbar = () => {
               </Link>
             ))}
             
+            {/* 
             <div className="text-sm font-semibold text-gray-500 cursor-pointer hover:text-navy mr-4">
               EN | हिंदी
             </div>
+            */}
 
             {user ? (
               <button onClick={handleLogout} className="btn-outline py-2 px-4 text-sm hover:-translate-y-0.5 transition-transform">

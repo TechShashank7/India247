@@ -3,6 +3,10 @@
     {
       "source": "/api/:path*",
       "destination": "https://india-247-backend.onrender.com/api/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/"
     }
   ]
 }
