@@ -237,7 +237,8 @@ router.get("/officer/performance/:name", async (req, res) => {
 // Get Feed API
 router.get("/feed", async (req, res) => {
   try {
-    const { sort, category, lat, lng } = req.query;
+    const { sort, category, lat, lng, page = 1, limit = 5 } = req.query;
+
     let complaints = await Complaint.find();
 
     // category filter
@@ -245,14 +246,17 @@ router.get("/feed", async (req, res) => {
       complaints = complaints.filter(c => c.category === category);
     }
 
-    // Near Me (Basic distance approx)
+    // Near Me
     if (lat && lng) {
       const userLat = parseFloat(lat);
       const userLng = parseFloat(lng);
       complaints = complaints.filter(c => {
         if (!c.lat || !c.lng) return false;
-        const dist = Math.sqrt(Math.pow(c.lat - userLat, 2) + Math.pow(c.lng - userLng, 2));
-        return dist < 0.1; // roughly 10km
+        const dist = Math.sqrt(
+          Math.pow(c.lat - userLat, 2) +
+          Math.pow(c.lng - userLng, 2)
+        );
+        return dist < 0.1;
       });
     }
 
@@ -273,7 +277,15 @@ router.get("/feed", async (req, res) => {
       });
     }
 
-    res.json(complaints);
+    // ✅ PAGINATION LOGIC
+    const startIndex = (page - 1) * limit;
+    const paginatedComplaints = complaints.slice(startIndex, startIndex + parseInt(limit));
+
+    res.json({
+      data: paginatedComplaints,
+      hasMore: startIndex + paginatedComplaints.length < complaints.length
+    });
+
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

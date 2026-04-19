@@ -77,7 +77,7 @@ const LandingPage = () => {
                   <Link to="/report" className="btn-primary text-center flex items-center justify-center gap-2">
                     Report Now <span aria-hidden="true">&rarr;</span>
                   </Link>
-                  <Link to="/map" className="btn-secondary text-center">
+                  <Link to="/tracker" className="btn-secondary text-center">
                     Track Complaint
                   </Link>
                 </div>

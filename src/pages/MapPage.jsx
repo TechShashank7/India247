@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { MarkerClusterer } from "@googlemaps/markerclusterer";
 import { RefreshCw, CheckCircle2 } from 'lucide-react';
@@ -43,6 +43,7 @@ const MapPage = () => {
   const [statusFilter, setStatusFilter] = useState("All");
   const [categoryFilter, setCategoryFilter] = useState("All");
   const navigate = useNavigate();
+  const location = useLocation();
   
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -261,10 +262,35 @@ const MapPage = () => {
     });
 
     if (!bounds.isEmpty() && !hasAutoCentered.current) {
+      // Handle focusComplaintId if present
+      if (location.state?.focusComplaintId) {
+        const targetComplaint = filteredComplaints.find(c => c._id === location.state.focusComplaintId);
+        if (targetComplaint && targetComplaint.lat && targetComplaint.lng) {
+          mapInstanceRef.current.panTo({ lat: parseFloat(targetComplaint.lat), lng: parseFloat(targetComplaint.lng) });
+          mapInstanceRef.current.setZoom(16);
+          
+          if (window.innerWidth < 768) {
+            setSelectedComplaint(targetComplaint);
+            setIsDetailsPanelOpen(true);
+          } else {
+            const marker = markersRef.current.find(m => {
+              const pos = m.getPosition();
+              return Math.abs(pos.lat() - parseFloat(targetComplaint.lat)) < 0.0001 && Math.abs(pos.lng() - parseFloat(targetComplaint.lng)) < 0.0001;
+            });
+            if (marker) {
+              window.google.maps.event.trigger(marker, 'click');
+            }
+          }
+          hasAutoCentered.current = true;
+          window.history.replaceState({}, document.title);
+          return; // Skip fitBounds
+        }
+      }
+
       mapInstanceRef.current.fitBounds(bounds);
       hasAutoCentered.current = true;
     }
-  }, [filteredComplaints, mapReady]);
+  }, [filteredComplaints, mapReady, location.state]);
 
   return (
     <div className="fixed inset-0 top-16 bg-gray-50 flex flex-col md:flex-row overflow-hidden overscroll-none">
