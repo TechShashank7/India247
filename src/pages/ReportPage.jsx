@@ -444,6 +444,7 @@ const ReportPage = () => {
   const [messages,           setMessages]           = useState([
     { isBot: true, text: "Namaste! 🙏 I'm Meera, your India247 assistant. What civic issue are you facing today?", typing: true }
   ]);
+  const [viewportHeight,     setViewportHeight]     = useState(window.innerHeight);
   const [inputText,          setInputText]          = useState('');
   const [isTyping,           setIsTyping]           = useState(false);
   const [isOutOfScope,       setIsOutOfScope]       = useState(false);
@@ -477,13 +478,34 @@ const ReportPage = () => {
     // Lock body scroll on mobile to prevent the whole screen from moving when keyboard opens
     const originalStyle = window.getComputedStyle(document.body).overflow;
     const originalHeight = document.body.style.height;
+    const originalPosition = document.body.style.position;
     
     document.body.style.overflow = 'hidden';
     document.body.style.height = '100dvh';
+    document.body.style.position = 'fixed';
+    document.body.style.width = '100%';
     
+    // Use VisualViewport API if available to precisely handle keyboard height
+    const handleViewportChange = () => {
+      if (window.visualViewport) {
+        setViewportHeight(window.visualViewport.height);
+      }
+    };
+
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', handleViewportChange);
+      window.visualViewport.addEventListener('scroll', handleViewportChange);
+    }
+
     return () => {
       document.body.style.overflow = originalStyle;
       document.body.style.height = originalHeight;
+      document.body.style.position = originalPosition;
+      document.body.style.width = '';
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', handleViewportChange);
+        window.visualViewport.removeEventListener('scroll', handleViewportChange);
+      }
     };
   }, []);
 
@@ -891,7 +913,10 @@ Rules for the summary:
   const sidebarStep = step === 1 ? 1 : step === 2 ? 2 : step === 3 ? 3 : step === 4 ? 4 : 5;
 
   return (
-    <div className="fixed inset-0 pt-16 bg-[#f7f9fb] flex font-sans overflow-hidden">
+    <div 
+      className="fixed inset-0 pt-16 bg-[#f7f9fb] flex font-sans overflow-hidden" 
+      style={{ height: viewportHeight }}
+    >
 
       {/* ── Sidebar ── */}
       <div className="hidden md:block w-80 bg-white border-r border-gray-100 p-8 h-full overflow-y-auto sticky top-16">
