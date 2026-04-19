@@ -1175,9 +1175,9 @@ Rules for the summary:
                           handleSendMessage(e);
                         }
                       }}
-                      disabled={isTyping}
+                      readOnly={isTyping}
                       placeholder={isTyping ? "Meera is replying..." : "Type your message..."}
-                      className="w-full bg-transparent border-none focus:ring-0 resize-none font-sans text-[15px] text-gray-800 placeholder:text-gray-400 py-3 max-h-32 outline-none disabled:opacity-50"
+                      className={`w-full bg-transparent border-none focus:ring-0 resize-none font-sans text-[15px] text-gray-800 placeholder:text-gray-400 py-3 max-h-32 outline-none ${isTyping ? 'opacity-50' : ''}`}
                       rows="1"
                     ></textarea>
                   </div>
