@@ -6,11 +6,11 @@ import ChatBubble from '../components/ChatBubble';
 import { useAuth } from '../context/AuthContext';
 
 // ─── API KEYS ────────────────────────────────────────────────────────────────
-const GEMINI_API_KEY      = import.meta.env.VITE_GEMINI_API_KEY;
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 // ─────────────────────────────────────────────────────────────────────────────
 
-const GEMINI_URL        = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`;
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`;
 const GEMINI_VISION_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
 
 // ─── Fix PlaceAutocompleteElement styling ─────────────────────────────────────
@@ -252,7 +252,7 @@ function loadGoogleMaps() {
     }
     window.__googleMapsCallback = resolve;
     const script = document.createElement('script');
-    script.id  = 'gmap-script';
+    script.id = 'gmap-script';
     script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=maps,places,marker&v=weekly&callback=__googleMapsCallback`;
     script.async = true;
     script.defer = true;
@@ -263,16 +263,16 @@ function loadGoogleMaps() {
 
 // ─── Location Picker ──────────────────────────────────────────────────────────
 const LocationPicker = ({ onLocationConfirmed }) => {
-  const mapRef                   = useRef(null);
-  const mapInstanceRef           = useRef(null);
-  const markerRef                = useRef(null);
+  const mapRef = useRef(null);
+  const mapInstanceRef = useRef(null);
+  const markerRef = useRef(null);
   const autocompleteContainerRef = useRef(null);
-  const addressRef               = useRef('');
-  const latRef                   = useRef(null);
-  const lngRef                   = useRef(null);
+  const addressRef = useRef('');
+  const latRef = useRef(null);
+  const lngRef = useRef(null);
 
-  const [address,  setAddress]  = useState('');
-  const [loading,  setLoading]  = useState(true);
+  const [address, setAddress] = useState('');
+  const [loading, setLoading] = useState(true);
   const [locating, setLocating] = useState(false);
 
   const DEFAULT_CENTER = { lat: 28.6139, lng: 77.2090 };
@@ -410,11 +410,10 @@ const LocationPicker = ({ onLocationConfirmed }) => {
               lng: lngRef.current
             });
           }}
-          className={`flex-1 flex items-center justify-center gap-2 rounded-xl px-4 py-3 font-semibold transition-colors ${
-            address
+          className={`flex-1 flex items-center justify-center gap-2 rounded-xl px-4 py-3 font-semibold transition-colors ${address
               ? 'bg-navy text-white hover:bg-gray-800 cursor-pointer'
               : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-          }`}
+            }`}
         >
           Confirm Location
         </button>
@@ -425,10 +424,10 @@ const LocationPicker = ({ onLocationConfirmed }) => {
 
 // ─── Step labels ──────────────────────────────────────────────────────────────
 const STEPS = [
-  { num: 1, text: 'Describe Issue'   },
-  { num: 2, text: 'Upload Photo'     },
-  { num: 3, text: 'AI Verification'  },
-  { num: 4, text: 'Add Location'     },
+  { num: 1, text: 'Describe Issue' },
+  { num: 2, text: 'Upload Photo' },
+  { num: 3, text: 'AI Verification' },
+  { num: 4, text: 'Add Location' },
   { num: 5, text: 'Confirm & Submit' },
 ];
 
@@ -440,35 +439,35 @@ const ReportPage = () => {
   const { user } = useAuth();
 
   // ── UI state
-  const [step,               setStep]               = useState(1); // 1=chat 2=photo 3=verifying 4=location 5=anon 6=done
-  const [messages,           setMessages]           = useState([
+  const [step, setStep] = useState(1); // 1=chat 2=photo 3=verifying 4=location 5=anon 6=done
+  const [messages, setMessages] = useState([
     { isBot: true, text: "Namaste! 🙏 I'm Meera, your India247 assistant. What civic issue are you facing today?", typing: true }
   ]);
-  const [viewportHeight,     setViewportHeight]     = useState(window.innerHeight);
-  const [inputText,          setInputText]          = useState('');
-  const [isTyping,           setIsTyping]           = useState(false);
-  const [isOutOfScope,       setIsOutOfScope]       = useState(false);
+  const [viewportHeight, setViewportHeight] = useState(window.innerHeight);
+  const [inputText, setInputText] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+  const [isOutOfScope, setIsOutOfScope] = useState(false);
 
   // ── Photo & verification state
-  const [uploadingImage,     setUploadingImage]     = useState(false);
-  const [aiVerifying,        setAiVerifying]        = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [aiVerifying, setAiVerifying] = useState(false);
   const [verificationResult, setVerificationResult] = useState(null);
 
   // ── Complaint data
-  const [detectedIntent,     setDetectedIntent]     = useState(null); // shown in sidebar
-  const [issueSummary,       setIssueSummary]       = useState('');   // built from conversation
-  const [formData,           setFormData]           = useState({});
-  const [complaintSummary,   setComplaintSummary]   = useState('');
-  const [trackingId,         setTrackingId]         = useState(generateTrackingId());
-  const [classification,     setClassification]     = useState(null);
-  const [classifying,        setClassifying]        = useState(false);
+  const [detectedIntent, setDetectedIntent] = useState(null); // shown in sidebar
+  const [issueSummary, setIssueSummary] = useState('');   // built from conversation
+  const [formData, setFormData] = useState({});
+  const [complaintSummary, setComplaintSummary] = useState('');
+  const [trackingId, setTrackingId] = useState(generateTrackingId());
+  const [classification, setClassification] = useState(null);
+  const [classifying, setClassifying] = useState(false);
 
   // ── Refs
-  const messagesEndRef   = useRef(null);
-  const fileInputRef     = useRef(null);
-  const cameraInputRef   = useRef(null);
-  const conversationRef  = useRef([]); // full history for Gemini
-  const lastCallTimeRef  = useRef(0);
+  const messagesEndRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
+  const conversationRef = useRef([]); // full history for Gemini
+  const lastCallTimeRef = useRef(0);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -479,12 +478,12 @@ const ReportPage = () => {
     const originalStyle = window.getComputedStyle(document.body).overflow;
     const originalHeight = document.body.style.height;
     const originalPosition = document.body.style.position;
-    
+
     document.body.style.overflow = 'hidden';
     document.body.style.height = '100dvh';
     document.body.style.position = 'fixed';
     document.body.style.width = '100%';
-    
+
     // Use VisualViewport API if available to precisely handle keyboard height
     const handleViewportChange = () => {
       if (window.visualViewport) {
@@ -560,7 +559,7 @@ const ReportPage = () => {
           }
         ]
       });
-      
+
       conversationRef.current.push({ role: 'user', content: text });
       const { cleanText, readyForPhoto, outOfScope, intent } = parseAIResponse(rawReply);
 
@@ -610,7 +609,7 @@ const ReportPage = () => {
       const imageUrl = cloudinaryData.secure_url;
 
       const previewUrl = URL.createObjectURL(file);
-      
+
       const reader = new FileReader();
       reader.onloadend = () => {
         setUploadingImage(false);
@@ -631,7 +630,7 @@ const ReportPage = () => {
     setVerificationResult(null);
 
     const base64Data = base64FullDataUrl.split(',')[1];
-    const mediaType  = file.type || 'image/jpeg';
+    const mediaType = file.type || 'image/jpeg';
 
     // Build a rich prompt using the actual conversation
     const verifyPrompt = `You are an image verification AI for India247, a civic complaint platform in India.
@@ -738,7 +737,7 @@ Respond ONLY with this exact JSON (no markdown, no extra text):
   // ── STEP 5 → 6: Anonymous choice & submit ────────────────────────────────
   const handleAnonymousSubmit = async (isAnonymous) => {
     setMessages(prev => [...prev, { isBot: false, text: isAnonymous ? '🔒 Yes, keep me anonymous' : '👤 No, use my name' }]);
-    
+
     // Capture state early before reset
     const currentLoc = formData.location;
     const currentImg = formData.imageData;
@@ -856,7 +855,7 @@ Rules for the summary:
       setIsTyping(false);
       const fallbackSummary = `This complaint pertains to a civic issue reported at ${currentLoc}. The matter has been forwarded to the Municipal Corporation for resolution.`;
       setComplaintSummary(fallbackSummary);
-      
+
       try {
         setClassifying(true);
         let currentClassification = null;
@@ -913,8 +912,8 @@ Rules for the summary:
   const sidebarStep = step === 1 ? 1 : step === 2 ? 2 : step === 3 ? 3 : step === 4 ? 4 : 5;
 
   return (
-    <div 
-      className="fixed inset-0 pt-16 bg-[#f7f9fb] flex font-sans overflow-hidden" 
+    <div
+      className="fixed inset-0 pt-16 bg-[#f7f9fb] flex font-sans overflow-hidden"
       style={{ height: viewportHeight }}
     >
 
@@ -926,19 +925,17 @@ Rules for the summary:
         <div className="space-y-6 mb-10">
           {STEPS.map((s) => {
             const isCompleted = sidebarStep > s.num;
-            const isActive    = sidebarStep === s.num;
+            const isActive = sidebarStep === s.num;
             return (
               <div key={s.num} className="flex items-center gap-4">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all ${
-                  isCompleted ? 'bg-green-100 text-india-green' :
-                  isActive    ? 'bg-orange-100 text-saffron ring-2 ring-orange-200' :
-                                'bg-gray-100 text-gray-400'
-                }`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all ${isCompleted ? 'bg-green-100 text-india-green' :
+                    isActive ? 'bg-orange-100 text-saffron ring-2 ring-orange-200' :
+                      'bg-gray-100 text-gray-400'
+                  }`}>
                   {isCompleted ? '✓' : isActive && s.num === 3 ? '⟳' : s.num}
                 </div>
-                <span className={`font-semibold text-sm ${
-                  isCompleted ? 'text-gray-800' : isActive ? 'text-navy' : 'text-gray-400'
-                }`}>{s.text}</span>
+                <span className={`font-semibold text-sm ${isCompleted ? 'text-gray-800' : isActive ? 'text-navy' : 'text-gray-400'
+                  }`}>{s.text}</span>
               </div>
             );
           })}
@@ -1001,10 +998,10 @@ Rules for the summary:
                   <div className="mt-2 flex flex-col gap-2">
                     <img src={msg.imageUrl} alt="Uploaded" className="w-48 h-48 object-cover rounded-xl border border-gray-100 shadow-sm" />
                     {step >= 3 && step < 5 && (
-                      <button 
+                      <button
                         onClick={() => {
                           setStep(2);
-                          setFormData(prev => ({...prev, imageVerified: false, imageData: null}));
+                          setFormData(prev => ({ ...prev, imageVerified: false, imageData: null }));
                           setMessages(prev => prev.slice(0, idx));
                           if (fileInputRef.current) fileInputRef.current.value = '';
                           if (cameraInputRef.current) cameraInputRef.current.value = '';
@@ -1136,8 +1133,8 @@ Rules for the summary:
                 </div>
 
                 <div className="flex flex-col gap-3">
-                  <button 
-                    onClick={() => navigate('/tracker', { state: { complaintId: trackingId } })} 
+                  <button
+                    onClick={() => navigate('/tracker', { state: { complaintId: trackingId } })}
                     className="btn-primary py-2.5"
                   >
                     Track My Complaint
@@ -1154,22 +1151,13 @@ Rules for the summary:
         </div>
 
         {/* ── Bottom Input Area ── */}
-        {!aiVerifying && step !== 6 && !isTyping && !isOutOfScope && (
-          <div className="p-1 sm:p-3 bg-[#f7f9fb]/90 backdrop-blur-xl border-t border-gray-200/50 shrink-0 z-10">
+        {!aiVerifying && step !== 6 && !isOutOfScope && (
+          <div className="p-1 sm:p-2 bg-[#f7f9fb]/90 backdrop-blur-xl border-t border-gray-200/50 shrink-0 z-10">
             <div className="max-w-3xl mx-auto">
 
               {/* Step 1: Free text chat */}
               {step === 1 && (
-                <form onSubmit={handleSendMessage} className="flex items-end gap-3">
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    aria-label="Add Photo"
-                    title="Upload photo early"
-                    className="flex-shrink-0 w-12 h-12 rounded-full bg-white text-saffron shadow-[0_4px_12px_rgba(0,0,0,0.04)] outline outline-1 outline-gray-200 flex items-center justify-center transition-transform active:scale-95 hover:bg-gray-50"
-                  >
-                    <Camera size={22} />
-                  </button>
+                <form onSubmit={handleSendMessage} className="flex items-end gap-2">
                   <input
                     type="file"
                     ref={fileInputRef}
@@ -1177,7 +1165,7 @@ Rules for the summary:
                     className="hidden"
                     accept="image/*"
                   />
-                  <div className="flex-1 bg-white rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.04)] outline outline-1 outline-gray-200 flex items-center px-4 min-h-[3rem]">
+                  <div className="flex-1 bg-white rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.04)] outline outline-1 outline-gray-200 flex items-center px-4 min-h-[2.75rem]">
                     <textarea
                       value={inputText}
                       onChange={(e) => setInputText(e.target.value)}
@@ -1187,15 +1175,15 @@ Rules for the summary:
                           handleSendMessage(e);
                         }
                       }}
-                      placeholder="Type your message..."
-                      className="w-full bg-transparent border-none focus:ring-0 resize-none font-sans text-[15px] text-gray-800 placeholder:text-gray-400 py-3 max-h-32 outline-none"
+                      disabled={isTyping}
+                      placeholder={isTyping ? "Meera is replying..." : "Type your message..."}
+                      className="w-full bg-transparent border-none focus:ring-0 resize-none font-sans text-[15px] text-gray-800 placeholder:text-gray-400 py-3 max-h-32 outline-none disabled:opacity-50"
                       rows="1"
-                      autoFocus
                     ></textarea>
                   </div>
                   <button
                     type="submit"
-                    disabled={!inputText.trim()}
+                    disabled={!inputText.trim() || isTyping}
                     className="flex-shrink-0 w-12 h-12 rounded-full bg-gradient-to-br from-saffron to-[#d14405] text-white shadow-[0_4px_12px_rgba(232,84,26,0.2)] flex items-center justify-center transition-transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Send size={20} className="ml-1" />
