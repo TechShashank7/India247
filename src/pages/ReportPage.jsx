@@ -473,6 +473,20 @@ const ReportPage = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping, aiVerifying]);
 
+  useEffect(() => {
+    // Lock body scroll on mobile to prevent the whole screen from moving when keyboard opens
+    const originalStyle = window.getComputedStyle(document.body).overflow;
+    const originalHeight = document.body.style.height;
+    
+    document.body.style.overflow = 'hidden';
+    document.body.style.height = '100dvh';
+    
+    return () => {
+      document.body.style.overflow = originalStyle;
+      document.body.style.height = originalHeight;
+    };
+  }, []);
+
   // ── Add bot message helper
   const addBotMessage = (text, delay = 700) => {
     return new Promise((resolve) => {
@@ -951,8 +965,8 @@ Rules for the summary:
       </div>
 
       {/* ── Chat Area ── */}
-      <div className="flex-1 flex flex-col h-full relative">
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+      <div className="flex-1 flex flex-col h-full relative overflow-hidden">
+        <div className="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6 lg:p-8">
           <div className="max-w-3xl mx-auto">
 
             {/* Messages */}
@@ -1116,7 +1130,7 @@ Rules for the summary:
 
         {/* ── Bottom Input Area ── */}
         {!aiVerifying && step !== 6 && !isTyping && !isOutOfScope && (
-          <div className="p-2 sm:p-4 bg-[#f7f9fb]/90 backdrop-blur-xl border-t border-gray-200/50 shrink-0 z-10">
+          <div className="p-1 sm:p-3 bg-[#f7f9fb]/90 backdrop-blur-xl border-t border-gray-200/50 shrink-0 z-10">
             <div className="max-w-3xl mx-auto">
 
               {/* Step 1: Free text chat */}
