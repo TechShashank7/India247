@@ -877,7 +877,7 @@ Rules for the summary:
   const sidebarStep = step === 1 ? 1 : step === 2 ? 2 : step === 3 ? 3 : step === 4 ? 4 : 5;
 
   return (
-    <div className="pt-16 h-[100dvh] bg-[#f7f9fb] flex font-sans overflow-hidden">
+    <div className="fixed inset-0 pt-16 bg-[#f7f9fb] flex font-sans overflow-hidden">
 
       {/* ── Sidebar ── */}
       <div className="hidden md:block w-80 bg-white border-r border-gray-100 p-8 h-full overflow-y-auto sticky top-16">
@@ -1116,7 +1116,7 @@ Rules for the summary:
 
         {/* ── Bottom Input Area ── */}
         {!aiVerifying && step !== 6 && !isTyping && !isOutOfScope && (
-          <div className="p-4 sm:pb-8 bg-[#f7f9fb]/90 backdrop-blur-xl border-t border-gray-200/50 shrink-0 z-10 sticky bottom-0">
+          <div className="p-2 sm:p-4 bg-[#f7f9fb]/90 backdrop-blur-xl border-t border-gray-200/50 shrink-0 z-10">
             <div className="max-w-3xl mx-auto">
 
               {/* Step 1: Free text chat */}
