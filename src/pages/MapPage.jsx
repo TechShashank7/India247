@@ -333,7 +333,7 @@ const MapPage = () => {
       {/* MOBILE INSIGHTS FAB - Outside map container to ensure visibility */}
       <button
         onClick={() => setIsPanelOpen(true)}
-        className="md:hidden fixed bottom-32 right-5 bg-navy text-white px-6 py-3.5 rounded-full shadow-[0_8px_25px_rgba(15,52,96,0.3)] z-[1001] font-bold text-sm flex items-center gap-2 animate-in slide-in-from-bottom-4 duration-500"
+        className="md:hidden fixed bottom-32 right-5 bg-navy text-white px-6 py-3.5 rounded-full shadow-[0_8px_25px_rgba(15,52,96,0.3)] z-[2000] font-bold text-sm flex items-center gap-2 animate-in slide-in-from-bottom-4 duration-500"
       >
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m3 3 18 18"/><path d="M15 3h6v6"/><path d="M9 21H3v-6"/></svg>
         Insights
@@ -370,9 +370,9 @@ const MapPage = () => {
         )}
       </div>
 
-      {/* MOBILE BOTTOM SHEET */}
+      {/* MOBILE BOTTOM SHEET FOR INSIGHTS */}
       <div 
-        className={`fixed inset-x-0 bottom-0 z-[1002] transform transition-transform duration-300 ${
+        className={`fixed inset-x-0 bottom-0 z-[3000] transform transition-transform duration-300 ${
           isPanelOpen ? 'translate-y-0' : 'translate-y-full'
         } md:hidden`}
       >
@@ -383,7 +383,7 @@ const MapPage = () => {
             onClick={() => setIsPanelOpen(false)}
           />
         )}
-        <div className="bg-white rounded-t-[2.5rem] p-6 shadow-[0_-15px_30px_rgba(0,0,0,0.15)] max-h-[70vh] overflow-y-auto border-t border-gray-100">
+        <div className="bg-white rounded-t-[2.5rem] p-6 pb-28 shadow-[0_-15px_30px_rgba(0,0,0,0.15)] max-h-[70vh] overflow-y-auto border-t border-gray-100 pb-safe">
           <div className="flex justify-center mb-6">
             <div className="w-12 h-1.5 bg-gray-200 rounded-full" />
           </div>
@@ -430,7 +430,7 @@ const MapPage = () => {
 
       {/* MOBILE DETAILS BOTTOM SHEET */}
       <div 
-        className={`fixed inset-x-0 bottom-0 z-[1002] transform transition-transform duration-300 ${
+        className={`fixed inset-x-0 bottom-0 z-[3000] transform transition-transform duration-300 ${
           isDetailsPanelOpen ? 'translate-y-0' : 'translate-y-full'
         } md:hidden`}
       >
@@ -441,7 +441,7 @@ const MapPage = () => {
           />
         )}
         {selectedComplaint && (
-          <div className="bg-white rounded-t-[2.5rem] p-6 shadow-[0_-15px_30px_rgba(0,0,0,0.15)] max-h-[85vh] overflow-y-auto border-t border-gray-100 flex flex-col">
+          <div className="bg-white rounded-t-[2.5rem] p-6 pb-28 shadow-[0_-15px_30px_rgba(0,0,0,0.15)] max-h-[85vh] overflow-y-auto border-t border-gray-100 flex flex-col pb-safe">
             <div className="flex justify-center mb-6 shrink-0">
               <div className="w-12 h-1.5 bg-gray-200 rounded-full" />
             </div>
