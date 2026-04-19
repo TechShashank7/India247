@@ -468,6 +468,7 @@ const ReportPage = () => {
   const cameraInputRef = useRef(null);
   const conversationRef = useRef([]); // full history for Gemini
   const lastCallTimeRef = useRef(0);
+  const chatInputRef = useRef(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -488,6 +489,9 @@ const ReportPage = () => {
     const handleViewportChange = () => {
       if (window.visualViewport) {
         setViewportHeight(window.visualViewport.height);
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
       }
     };
 
@@ -540,6 +544,7 @@ const ReportPage = () => {
 
     setInputText('');
     setMessages(prev => [...prev, { isBot: false, text }]);
+    chatInputRef.current?.focus();
 
     setIsTyping(true);
     try {
@@ -1167,8 +1172,12 @@ Rules for the summary:
                   />
                   <div className="flex-1 bg-white rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.04)] outline outline-1 outline-gray-200 flex items-center px-4 min-h-[2.75rem]">
                     <textarea
+                      ref={chatInputRef}
                       value={inputText}
                       onChange={(e) => setInputText(e.target.value)}
+                      onFocus={() => {
+                        setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 300);
+                      }}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' && !e.shiftKey) {
                           e.preventDefault();
@@ -1183,6 +1192,7 @@ Rules for the summary:
                   </div>
                   <button
                     type="submit"
+                    onPointerDown={(e) => e.preventDefault()}
                     disabled={!inputText.trim() || isTyping}
                     className="flex-shrink-0 w-12 h-12 rounded-full bg-gradient-to-br from-saffron to-[#d14405] text-white shadow-[0_4px_12px_rgba(232,84,26,0.2)] flex items-center justify-center transition-transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
