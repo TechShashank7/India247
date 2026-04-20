@@ -64,12 +64,12 @@ Instead of filling out long, confusing forms, citizens can simply chat with our 
 | Domain | Technology |
 |---|---|
 | **Frontend** | React 19, Vite, Tailwind CSS v4, Lucide React, Axios |
-| **Backend** | Node.js, Express.js, Multer |
+| **Backend** | Node.js, Express.js |
 | **Database** | MongoDB Atlas, Mongoose |
 | **Authentication** | Firebase Auth |
 | **Artificial Intelligence**| Google Gemini (2.5 Flash & Flash-Lite) |
 | **Cloud Storage** | Cloudinary |
-| **Mapping & Location** | Google Maps API, Leaflet, React Leaflet |
+| **Mapping & Location** | Google Maps API |
 
 ---
 
