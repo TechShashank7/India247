@@ -34,7 +34,7 @@ The application has transitioned from a mock-data UI prototype to a **Full-Stack
   - Rewards redemption (badges exist, but "claiming" a reward has no backend consequence).
   
 - **NOT IMPLEMENTED YET:**
-  - Language Translation (Hindi/Regional).
+  - Language Translation (Hindi/Regional) - *UI button temporarily removed/commented out.*
   - Push Notifications (Firebase Messaging is configured in `.env` but not actively utilized for alerts).
   - Email Notifications.
 
@@ -50,17 +50,17 @@ The application has transitioned from a mock-data UI prototype to a **Full-Stack
 ### B. Report Complaint System
 - **Purpose:** Allow users to file context-rich complaints easily.
 - **Status:** Fully Implemented.
-- **How it works:** Uses an interactive 6-step state machine simulating an AI dialog. Connected to `gemini-2.5-flash-lite` for text and `gemini-2.5-flash` for image verification. Posts the final JSON payload to `/api/complaints`.
+- **How it works:** Uses an interactive 6-step state machine simulating an AI dialog. Upgraded to use **Intent Detection** (`[INTENT: "..."]` extraction) for intelligent parsing instead of rigid categories. Connected to `gemini-2.5-flash-lite` for text and `gemini-2.5-flash` for image verification. Mobile UI optimized for persistent keyboard control. Posts the final JSON payload to the backend.
 
 ### C. Map Integration
 - **Purpose:** Visualize complaint density and locations.
 - **Status:** Fully Implemented.
-- **How it works:** **Google Maps API** fetching from `/api/complaints`. Custom colored markers and clustering represent issue categories/priorities. Includes basic `<0.1` distance logic roughly equal to a 10km radius for "Near Me".
+- **How it works:** **Google Maps API** fetching from backend. Custom colored markers and clustering represent issue categories/priorities. Map mobile UI is locked to prevent page scrolling, uses a bottom sheet for selected complaint details, and supports seamless deep-linking to the Feed for specific complaints.
 
 ### D. Community Feed
 - **Purpose:** Social-media-like scroll of issues in the city.
 - **Status:** Fully Implemented.
-- **How it works:** Fetches from `/api/complaints/feed`. Users can sort by "latest", "upvotes", and "trending" (custom scoring). Supports upvoting and commenting via distinct API endpoints.
+- **How it works:** Fetches from the backend. Users can sort by "latest", "upvotes", and "trending" (custom scoring). Features **Optimistic UI updates** for upvotes and comments (no reloading needed) and seamless map-to-feed connectivity. Includes a modern mobile "Back to Top" navigation.
 
 ### E. Complaint Tracker & Reopen logic
 - **Purpose:** Transparency in resolution.
@@ -94,16 +94,16 @@ The application has transitioned from a mock-data UI prototype to a **Full-Stack
 ## 5. 🗄️ Backend & Database Status
 
 - **Stack:** Node.js, Express, MongoDB Atlas, Mongoose.
-- **Deployed:** Yes (assumed via Render/Vercel split, CORS handled).
+- **Deployed:** Yes. Frontend on Vercel, Backend deployed to `https://api.india247.shashankraj.in`. All frontend calls have been explicitly updated to point to this absolute URL instead of relative `/api/` paths to avoid 404/521 routing errors.
 - **APIs Existing:**
-  - `POST /api/users/sync`, `GET /api/users/:uid`
-  - `POST /api/complaints`
-  - `GET /api/complaints`, `GET /api/complaints/:id`, `GET /api/complaints/feed`
-  - `PUT /api/complaints/:id/status`
-  - `POST /api/complaints/:id/upvote`, `comment`, `share`, `rate`
-  - `POST /api/complaints/:id/reopen` (Uses `multer-storage-cloudinary` and Gemini)
-  - `GET /api/complaints/officer/performance/:name`
-  - `GET /api/complaints/user/points/:name`, `/leaderboard`
+  - `POST .../api/users/sync`, `GET .../api/users/:uid`
+  - `POST .../api/complaints`
+  - `GET .../api/complaints`, `GET .../api/complaints/:id`, `GET .../api/complaints/feed`
+  - `PUT .../api/complaints/:id/status`
+  - `POST .../api/complaints/:id/upvote`, `comment`, `share`, `rate`
+  - `POST .../api/complaints/:id/reopen` (Uses `multer-storage-cloudinary` and Gemini)
+  - `GET .../api/complaints/officer/performance/:name`
+  - `GET .../api/complaints/user/points/:name`, `/leaderboard`
 - **Missing/Mocked logic:** Actual email/SMS generation when status changes.
 
 ---
@@ -132,8 +132,8 @@ The lifecycle stages for a complaint must follow this precise order:
 
 ## 8. 🎨 UI/UX Status
 - **Styling:** Tailwind CSS v4.
-- **Design Language:** Highly polished, premium glassmorphism, dynamic animations (`framer-motion` / CSS transitions).
-- **Colors:** Saffron (`#f97316`), India Green (`#22c55e`), Navy (`#1e293b`).
+- **Design Language:** Highly polished, premium glassmorphism, dynamic animations (`framer-motion` / CSS transitions). Mobile navigation uses a profile-based glassmorphism popup instead of a hamburger menu.
+- **Colors:** Saffron (`#f97316`), India Green (`#22c55e`), Navy (`#1e293b`), optimized contrast (e.g. white text for Rewards profiles).
 - **Incomplete UI:** "Trending Tags" sidebar in `FeedPage` is hardcoded. Reward badges claim buttons don't do anything. 
 
 ---
