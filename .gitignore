@@ -24,3 +24,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Project docs and mock data
+mockData.js
+CHATGPT.md
+ChatGPT.md
+DESIGN.md
+CONTEXT.md

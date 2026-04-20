@@ -24,7 +24,7 @@ function getNextLevel(points) {
 
 // Rewards catalog (UI data — these define what can be redeemed)
 const rewardsCatalog = [
-  { id: 0, title: "₹5 Instant Cashback", pts: 70, icon: "💸" },
+  { id: 0, title: "₹5 Instant Cashback", pts: 35, icon: "💸" },
   { id: 1, title: "Metro Smart Card", pts: 200, icon: "🚇" },
   { id: 2, title: "Mobile Recharge ₹50", pts: 150, icon: "📱" },
   { id: 3, title: "Uber Ride 20% Off", pts: 350, icon: "🛵" },
