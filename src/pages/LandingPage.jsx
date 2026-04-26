@@ -31,16 +31,23 @@ const CountUp = ({ end, duration = 2000 }) => {
 
   return <span ref={ref}>{count.toLocaleString()}</span>;
 };
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { Shield, Smartphone, Zap, MapPin, Search, X, Send } from 'lucide-react';
 import axios from 'axios';
 import ComplaintCard from '../components/ComplaintCard';
 import { mockComplaints } from '../data/mockData';
+import { useAuth } from '../context/AuthContext';
 
 const LandingPage = () => {
   const [isChatOpen, setIsChatOpen] = useState(false);
-
+  const { user, loading } = useAuth();
   const [recentComplaints, setRecentComplaints] = useState([]);
+
+  if (loading) return null;
+
+  if (user?.role === 'officer') {
+    return <Navigate to="/officer" />;
+  }
 
   useEffect(() => {
     const fetchTopComplaints = async () => {

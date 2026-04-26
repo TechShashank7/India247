@@ -51,6 +51,7 @@ const Navbar = () => {
   ];
 
   const visibleLinks = navLinks.filter(link => {
+    if (user?.role === 'officer') return false;
     if (link.name === 'Home') return true;
     if (!user) return false;
     return link.roles.includes(user.role);

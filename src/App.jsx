@@ -128,7 +128,7 @@ function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/auth" element={<AuthPage />} />
           <Route path="/report" element={<ProtectedRoute allowedRoles={['user']}><ReportPage /></ProtectedRoute>} />
-          <Route path="/map" element={<ProtectedRoute allowedRoles={['user', 'officer']}><MapPage /></ProtectedRoute>} />
+          <Route path="/map" element={<ProtectedRoute allowedRoles={['user']}><MapPage /></ProtectedRoute>} />
           <Route path="/feed" element={<ProtectedRoute allowedRoles={['user']}><FeedPage /></ProtectedRoute>} />
           <Route path="/tracker" element={<ProtectedRoute allowedRoles={['user']}><TrackerPage /></ProtectedRoute>} />
           <Route path="/rewards" element={<ProtectedRoute allowedRoles={['user']}><RewardsPage /></ProtectedRoute>} />
