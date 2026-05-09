@@ -39,7 +39,7 @@ function extractJSON(text) {
 }
 
 export const validateReopenReason = async (originalDescription, reason) => {
-  const GEMINI_API_KEY = process.env.REOPEN_AI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+  const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.REOPEN_AI_API_KEY;
   console.log("[reopenAI] Validating reason. API Key exists:", !!GEMINI_API_KEY);
 
   const prompt = `You are an AI validator for a civic complaint platform. A user previously filed this complaint: "${originalDescription}". Now they want to REOPEN it with this reason: "${reason}". Is the reopen VALID? VALID if reason relates to original, issue unresolved, safety concern, or inadequate work. INVALID if unrelated, different issue, spam, or vague. Respond with ONLY raw JSON, nothing else: {"valid": true, "message": "short reason"} or {"valid": false, "message": "short reason"}`;
@@ -73,7 +73,7 @@ export const validateReopenReason = async (originalDescription, reason) => {
 export const validateReopenImage = async (originalDescription, reason, imagePath) => {
   if (!imagePath) return { valid: true };
 
-  const GEMINI_API_KEY = process.env.REOPEN_AI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+  const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.REOPEN_AI_API_KEY;
   console.log("[reopenAI] Validating image. API Key exists:", !!GEMINI_API_KEY);
 
   const prompt = `You are an AI image verifier for a civic complaint platform. Original complaint: "${originalDescription}". Reopen reason: "${reason}". Check: does the image match the original complaint and support the reopen reason? Reject if completely unrelated. Respond with ONLY raw JSON: {"valid": true, "message": "short reason"} or {"valid": false, "message": "short reason"}`;

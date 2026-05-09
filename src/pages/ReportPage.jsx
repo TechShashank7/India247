@@ -6,12 +6,15 @@ import ChatBubble from '../components/ChatBubble';
 import { useAuth } from '../context/AuthContext';
 
 // ─── API KEYS ────────────────────────────────────────────────────────────────
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+// SECURITY NOTE: The Gemini API key is now securely kept on the server-side.
+// The frontend only communicates with the backend proxy /api/ai endpoints.
+// Google Maps API Key is public by design, so it can be safely exposed.
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 // ─────────────────────────────────────────────────────────────────────────────
 
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`;
-const GEMINI_VISION_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+const API_BASE = import.meta.env.DEV ? 'http://localhost:5000' : 'https://api.india247.shashankraj.in';
+const AI_CHAT_URL = `${API_BASE}/api/ai/chat`;
+const AI_VISION_URL = `${API_BASE}/api/ai/vision`;
 
 // ─── Fix PlaceAutocompleteElement styling ─────────────────────────────────────
 const styleEl = document.createElement('style');
@@ -175,7 +178,7 @@ async function callGemini({ messages }) {
 
   const fullPrompt = `${systemMsg ? systemMsg.content : MEERA_SYSTEM_PROMPT}\n\n--- CONVERSATION ---\n${historyText}\nMeera:`;
 
-  const res = await fetchWithRetry(GEMINI_URL, {
+  const res = await fetchWithRetry(AI_CHAT_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -190,7 +193,7 @@ async function callGemini({ messages }) {
 
 // ─── Gemini vision helper ─────────────────────────────────────────────────────
 async function callGeminiVision({ prompt, base64Image, mediaType }) {
-  const res = await fetchWithRetry(GEMINI_VISION_URL, {
+  const res = await fetchWithRetry(AI_VISION_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

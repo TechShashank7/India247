@@ -4,6 +4,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import complaintRoutes from './routes/complaintRoutes.js';
 import userRoutes from './routes/userRoutes.js';
+import aiRoutes from './routes/aiRoutes.js';
 
 // Load environment variables (Render handles this automatically)
 dotenv.config();
@@ -23,6 +24,7 @@ app.use((req, res, next) => {
 // Routes
 app.use('/api/complaints', complaintRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/ai', aiRoutes);
 
 // Root route (IMPORTANT for Render health check)
 app.all('/', (req, res) => {

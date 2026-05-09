@@ -31,7 +31,7 @@ function extractJSON(text) {
 }
 
 export const classifyIssue = async (intent, description) => {
-  const GEMINI_API_KEY = process.env.VITE_GEMINI_API_KEY || process.env.REOPEN_AI_API_KEY;
+  const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.REOPEN_AI_API_KEY;
   console.log("[classificationAI] Classifying issue. API Key exists:", !!GEMINI_API_KEY);
 
   const prompt = `You are an intelligent civic issue classification system for Indian municipal complaints.
