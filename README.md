@@ -2,7 +2,7 @@
 **A modern, AI-powered civic issue reporting and tracking platform for Indian citizens.**
 *Report. Track. Resolve.*
 
----
+----
 
 ## 🌍 Problem Statement
 In fast-growing cities, citizens constantly face everyday civic issues—potholes, water supply disruptions, uncollected garbage, and broken streetlights. Traditional reporting systems are tedious, opaque, and hard to track. On the other side, civic officers struggle with unstructured complaints and a lack of tools to easily prioritize and manage resolutions. Current systems fail because they lack transparency, are highly inconvenient to use, and offer absolutely no accountability or incentive for active citizen participation.
