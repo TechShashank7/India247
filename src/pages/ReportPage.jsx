@@ -102,7 +102,7 @@ CONVERSATION FLOW:
 3. IMPORTANT: Only emit [READY_FOR_PHOTO] AFTER the user has answered your last question.
 
 STRICT RULE:
-- If your message contains ANY question (even polite ones like "could you", "can you", "kya aap", etc.), DO NOT include [READY_FOR_PHOTO].
+- If your message contains ANY question (even polite ones like "could you", "can you", etc.), DO NOT include [READY_FOR_PHOTO].
 - The final message must be a statement, NOT a question.
 
 4. When you have gathered enough details (usually after 2-4 user replies), send ONE final acknowledgement message requesting a photo.
@@ -144,13 +144,12 @@ Then end with: [OUT_OF_SCOPE] on its own line.
 
 TONE: Warm, simple, friendly. Use 1 emoji per message max. Keep responses SHORT — 1-3 sentences. Remember many users may not be very tech-savvy. Do not use jargon.
 
-LANGUAGE:
-* Detect the user's language automatically
-* If English → reply in English
-* If Hinglish → reply in Hinglish
-* If Hindi → reply in Hindi (Devanagari)
-* Always mirror user's style naturally
-* Do NOT default to English`;
+LANGUAGE STRICT ENFORCEMENT (CRITICAL):
+- You MUST ALWAYS match the citizen's language:
+  * When the citizen speaks in English -> You MUST respond in pure, natural English only! NEVER use Hindi or Hinglish words (like "kitne dinon se", "kya", "sadak", etc.) when the citizen is speaking English!
+  * When the citizen speaks in Hindi (Devanagari script) -> Respond in Hindi (Devanagari script).
+  * When the citizen speaks in Hinglish (Roman script Hindi) -> Respond in Hinglish.
+- If the citizen speaks English, English is MANDATORY. Do NOT mix languages.`;
 
 // ─── Retry helper ────────────────────────────────────────────────────────────
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
@@ -167,16 +166,50 @@ async function fetchWithRetry(url, options, retries = 3) {
   throw new Error('Too many requests — please wait a moment and try again.');
 }
 
+// ─── Detect User Language ───────────────────────────────────────────────────
+function detectUserLanguage(text) {
+  if (!text) return 'English';
+  if (/[\u0900-\u097F]/.test(text)) return 'Hindi';
+
+  const hinglishWords = new Set([
+    'hai', 'hain', 'ho', 'hona', 'hoga', 'hogi', 'hoge',
+    'raha', 'rahi', 'rahe', 'tha', 'thi', 'the',
+    'kya', 'kyun', 'kaise', 'kab', 'kahan', 'kidhar',
+    'nahi', 'nhi', 'mat', 'bhi', 'aur', 'lekin', 'par', 'pe', 'se', 'ko', 'ka', 'ki', 'ke',
+    'yeh', 'ye', 'woh', 'wo', 'mera', 'meri', 'mere', 'tera', 'teri', 'tere', 'apna', 'apni', 'apne',
+    'karo', 'karna', 'kar', 'diya', 'liya', 'de', 'do', 'aaya', 'aayi', 'gaya', 'gayi',
+    'bohot', 'bahut', 'thoda', 'jyada', 'zyada', 'sirf', 'paani', 'sadak', 'kachra', 'bijli', 'dinon'
+  ]);
+
+  const words = text.toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/).filter(Boolean);
+  const matchCount = words.filter(w => hinglishWords.has(w)).length;
+  if (matchCount >= 2 || (words.length > 0 && matchCount / words.length >= 0.25)) {
+    return 'Hinglish';
+  }
+  return 'English';
+}
+
 // ─── Gemini text helper ───────────────────────────────────────────────────────
 async function callGemini({ messages }) {
   const systemMsg = messages.find(m => m.role === 'system');
   const chatMsgs = messages.filter(m => m.role !== 'system');
 
+  // Detect language of the latest user message
+  const lastUserMsg = chatMsgs.filter(m => m.role === 'user').pop()?.content || '';
+  const detectedLang = detectUserLanguage(lastUserMsg);
+
+  let langDirective = '[USER LANGUAGE: ENGLISH. You MUST respond in clear English only. Do NOT use Hindi or Hinglish words.]';
+  if (detectedLang === 'Hindi') {
+    langDirective = '[USER LANGUAGE: HINDI. Respond in Hindi (Devanagari script) only.]';
+  } else if (detectedLang === 'Hinglish') {
+    langDirective = '[USER LANGUAGE: HINGLISH. Respond in Hinglish only.]';
+  }
+
   const historyText = chatMsgs
     .map(m => `${m.role === 'user' ? 'User' : 'Meera'}: ${m.content}`)
     .join('\n');
 
-  const fullPrompt = `${systemMsg ? systemMsg.content : MEERA_SYSTEM_PROMPT}\n\n--- CONVERSATION ---\n${historyText}\nMeera:`;
+  const fullPrompt = `${systemMsg ? systemMsg.content : MEERA_SYSTEM_PROMPT}\n\n${langDirective}\n\n--- CONVERSATION ---\n${historyText}\nMeera:`;
 
   const res = await fetchWithRetry(AI_CHAT_URL, {
     method: 'POST',
