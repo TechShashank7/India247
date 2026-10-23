@@ -78,46 +78,22 @@ Your job is to help citizens report CIVIC issues only. Civic issues include:
 - Public Infrastructure: broken footpaths, damaged public property, open manholes, stray animal menace
 
 CONVERSATION FLOW:
-1. The first message in the conversation is already sent. Do NOT greet or re-introduce yourself in any subsequent message. Never say "Namaste", "Hi", "Hello", "I'm Meera" again after the first turn.
-2. Ask follow-up questions naturally to gather relevant details such as:
-  - a general area or landmark (e.g., "near Sector 62", "outside ABC school") ONLY if needed for understanding the issue.
-
-      IMPORTANT:
-      - Do NOT ask for exact address or precise location.
-      - The exact location will be collected later via a map interface.
-
-  - severity
-  - how long the issue has existed
-
-  IMPORTANT:
-    - Ask about safety risk ONLY if the issue could realistically pose danger to people (e.g., accidents, injuries, hazards).
-    - DO NOT ask about safety risk for minor or non-dangerous issues (e.g., park maintenance, minor cleanliness issues).Ask EXACTLY ONE question per message. Never combine two questions in the same message.
-
-  IMPORTANT (SMART QUESTIONING):
-    - Do NOT ask questions whose answers are already clearly implied by the user's previous messages.
-    - If the user has already indicated severity (e.g., "severe", "many accidents", "dangerous"), do NOT ask again about safety risk.
-    - Avoid repeating or rephrasing the same information.
-    - Each question should add NEW information, not confirm what is already obvious.
-    - Prefer skipping unnecessary questions if enough information is already gathered.
-3. IMPORTANT: Only emit [READY_FOR_PHOTO] AFTER the user has answered your last question.
-
-STRICT RULE:
-- If your message contains ANY question (even polite ones like "could you", "can you", etc.), DO NOT include [READY_FOR_PHOTO].
-- The final message must be a statement, NOT a question.
-
-4. When you have gathered enough details (usually after 2-4 user replies), send ONE final acknowledgement message requesting a photo.
-
-The final message MUST:
-- NOT contain any question
-- Be a clear instruction (e.g., "Please upload a photo of the issue.")
-- End with [READY_FOR_PHOTO]
-
-Correct example:
-"Thanks for the details. Please upload a photo of the issue so I can proceed. [READY_FOR_PHOTO]"
-
-Incorrect example (DO NOT DO THIS):
-"Could you please upload a photo? [READY_FOR_PHOTO]"
-5. Never mention "[READY_FOR_PHOTO]" explicitly to the user — it's a hidden signal.
+1. The first greeting has already been sent. Do NOT greet or re-introduce yourself again.
+2. ABSOLUTELY NEVER ASK FOR LOCATION, LANDMARK, STREET, OR AREA:
+   - Do NOT ask "Where is this located?", "Which area?", or "What landmark is nearby?".
+   - The citizen will pin their exact GPS location on an interactive Google Map in Step 4. Asking for location in chat is strictly forbidden and redundant.
+3. NEVER ASK OBVIOUS OR SENSELESS QUESTIONS:
+   - Do NOT ask questions whose answers are obvious (e.g. if a streetlight is broken, do NOT ask if it gets dark at night; if a pipe bursts, do NOT ask if water is leaking).
+   - Do NOT interrogate the citizen.
+4. MAXIMUM 1 QUICK FOLLOW-UP QUESTION (KEEP IT FAST & MINIMAL):
+   - You may ask AT MOST ONE simple, relevant question only if essential information is missing (e.g., "About how long has this been happening?").
+   - If the user's initial message already provided enough context (e.g., they already mentioned how long or described the issue clearly), DO NOT ask any questions! Immediately wrap up and request a photo.
+5. READY FOR PHOTO (WRAP UP PROMPTLY):
+   - As soon as the user replies to your question (or immediately if their first message had enough detail), you MUST conclude with a brief statement asking for a photo of the issue.
+   - The final message must be a statement, NOT a question.
+   - You MUST end the message with [READY_FOR_PHOTO].
+   - Example: "Thank you for the details. Please upload a photo of the issue so I can proceed with filing your complaint. [READY_FOR_PHOTO]"
+6. Never mention "[READY_FOR_PHOTO]" explicitly to the user in conversation — it's a hidden signal.
 
 INTENT DETECTION:
 Once you understand the user's issue clearly, include this hidden line in ONE of your responses:
@@ -195,7 +171,9 @@ async function callGemini({ messages }) {
   const chatMsgs = messages.filter(m => m.role !== 'system');
 
   // Detect language of the latest user message
-  const lastUserMsg = chatMsgs.filter(m => m.role === 'user').pop()?.content || '';
+  const userMessages = chatMsgs.filter(m => m.role === 'user');
+  const userMsgCount = userMessages.length;
+  const lastUserMsg = userMessages[userMessages.length - 1]?.content || '';
   const detectedLang = detectUserLanguage(lastUserMsg);
 
   let langDirective = '[USER LANGUAGE: ENGLISH. You MUST respond in clear English only. Do NOT use Hindi or Hinglish words.]';
@@ -205,11 +183,18 @@ async function callGemini({ messages }) {
     langDirective = '[USER LANGUAGE: HINGLISH. Respond in Hinglish only.]';
   }
 
+  let turnDirective = '';
+  if (userMsgCount >= 2) {
+    turnDirective = '\n[CRITICAL: User turn 2 reached. You have gathered enough information. You MUST wrap up NOW with a short statement requesting a photo and end with [READY_FOR_PHOTO]. Absolutely DO NOT ask any more questions.]';
+  } else if (userMsgCount === 1) {
+    turnDirective = '\n[GUIDELINE: If the user\'s message already provides enough context, do NOT ask any questions. Wrap up and request a photo with [READY_FOR_PHOTO]. Otherwise, ask at most ONE quick question about how long it has been happening. Do NOT ask about landmarks or location.]';
+  }
+
   const historyText = chatMsgs
     .map(m => `${m.role === 'user' ? 'User' : 'Meera'}: ${m.content}`)
     .join('\n');
 
-  const fullPrompt = `${systemMsg ? systemMsg.content : MEERA_SYSTEM_PROMPT}\n\n${langDirective}\n\n--- CONVERSATION ---\n${historyText}\nMeera:`;
+  const fullPrompt = `${systemMsg ? systemMsg.content : MEERA_SYSTEM_PROMPT}\n\n${langDirective}${turnDirective}\n\n--- CONVERSATION ---\n${historyText}\nMeera:`;
 
   const res = await fetchWithRetry(AI_CHAT_URL, {
     method: 'POST',
@@ -714,7 +699,8 @@ const ReportPage = () => {
         return;
       }
 
-      if (readyForPhoto) {
+      const userTurnCount = conversationRef.current.filter(m => m.role === 'user').length;
+      if (readyForPhoto || userTurnCount >= 2) {
         // Save summary before moving to photo step
         setIssueSummary(buildIssueSummary());
         setStep(2);
@@ -1307,7 +1293,23 @@ Rules for the summary:
 
               {/* Step 1: Free text chat */}
               {step === 1 && (
-                <form onSubmit={handleSendMessage} className="flex items-end gap-2">
+                <>
+                  {conversationRef.current.some(m => m.role === 'user') && (
+                    <div className="flex justify-end mb-1.5 px-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIssueSummary(buildIssueSummary());
+                          setStep(2);
+                        }}
+                        className="text-xs font-semibold text-saffron bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded-full px-3 py-1 flex items-center gap-1.5 transition-colors shadow-sm"
+                      >
+                        <Camera size={13} />
+                        <span>Ready to upload photo →</span>
+                      </button>
+                    </div>
+                  )}
+                  <form onSubmit={handleSendMessage} className="flex items-end gap-2">
                   <input
                     type="file"
                     ref={fileInputRef}
@@ -1339,6 +1341,7 @@ Rules for the summary:
                     <Send size={20} className="ml-1" />
                   </button>
                 </form>
+                </>
               )}
 
               {/* Step 2: Photo upload */}
