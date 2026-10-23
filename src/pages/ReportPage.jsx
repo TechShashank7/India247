@@ -125,7 +125,8 @@ LANGUAGE STRICT ENFORCEMENT (CRITICAL):
   * When the citizen speaks in English -> You MUST respond in pure, natural English only! NEVER use Hindi or Hinglish words (like "kitne dinon se", "kya", "sadak", etc.) when the citizen is speaking English!
   * When the citizen speaks in Hindi (Devanagari script) -> Respond in Hindi (Devanagari script).
   * When the citizen speaks in Hinglish (Roman script Hindi) -> Respond in Hinglish.
-- If the citizen speaks English, English is MANDATORY. Do NOT mix languages.`;
+- If the citizen speaks English, English is MANDATORY. Do NOT mix languages.
+- ABSOLUTELY NEVER prefix your reply with language tags (e.g. NEVER output "[USER LANGUAGE: ...]" or "[Hinglish]"). Output only your direct dialogue to the citizen.`;
 
 // ─── Retry helper ────────────────────────────────────────────────────────────
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
@@ -176,18 +177,18 @@ async function callGemini({ messages }) {
   const lastUserMsg = userMessages[userMessages.length - 1]?.content || '';
   const detectedLang = detectUserLanguage(lastUserMsg);
 
-  let langDirective = '[USER LANGUAGE: ENGLISH. You MUST respond in clear English only. Do NOT use Hindi or Hinglish words.]';
+  let langDirective = 'CRITICAL INSTRUCTION: The citizen speaks English. You MUST respond in natural, pure English only without any Hindi or Hinglish words. Do NOT include any meta tags or language labels.';
   if (detectedLang === 'Hindi') {
-    langDirective = '[USER LANGUAGE: HINDI. Respond in Hindi (Devanagari script) only.]';
+    langDirective = 'CRITICAL INSTRUCTION: The citizen speaks Hindi. Respond in Hindi (Devanagari script) only. Do NOT include any meta tags or language labels.';
   } else if (detectedLang === 'Hinglish') {
-    langDirective = '[USER LANGUAGE: HINGLISH. Respond in Hinglish only.]';
+    langDirective = 'CRITICAL INSTRUCTION: The citizen speaks Hinglish. Respond in warm, natural conversational Hinglish (Roman script Hindi) only. Do NOT include any meta tags, language labels, or bracketed prefixes.';
   }
 
   let turnDirective = '';
   if (userMsgCount >= 2) {
-    turnDirective = '\n[CRITICAL: User turn 2 reached. You have gathered enough information. You MUST wrap up NOW with a short statement requesting a photo and end with [READY_FOR_PHOTO]. Absolutely DO NOT ask any more questions.]';
+    turnDirective = '\nCRITICAL: User turn 2 reached. You have gathered enough information. Wrap up NOW with a short statement requesting a photo and end with [READY_FOR_PHOTO]. Absolutely DO NOT ask any more questions.';
   } else if (userMsgCount === 1) {
-    turnDirective = '\n[GUIDELINE: If the user\'s message already provides enough context, do NOT ask any questions. Wrap up and request a photo with [READY_FOR_PHOTO]. Otherwise, ask at most ONE quick question about how long it has been happening. Do NOT ask about landmarks or location.]';
+    turnDirective = '\nGUIDELINE: If the user\'s message already provides enough context, do NOT ask any questions. Wrap up and request a photo with [READY_FOR_PHOTO]. Otherwise, ask at most ONE quick question about how long it has been happening. Do NOT ask about landmarks or location.';
   }
 
   const historyText = chatMsgs
@@ -280,29 +281,35 @@ async function callGeminiVision({ prompt, base64Image, mediaType }) {
 
 // ─── Parse hidden markers from AI response ────────────────────────────────────
 function parseAIResponse(rawText) {
-  let cleanText = rawText;
+  let cleanText = rawText || '';
   let readyForPhoto = false;
   let outOfScope = false;
   let intent = null;
 
   // Check for [READY_FOR_PHOTO]
-  if (cleanText.includes('[READY_FOR_PHOTO]')) {
+  if (/\[READY_FOR_PHOTO\]/i.test(cleanText)) {
     readyForPhoto = true;
-    cleanText = cleanText.replace('[READY_FOR_PHOTO]', '').trim();
+    cleanText = cleanText.replace(/\[READY_FOR_PHOTO\]/gi, '').trim();
   }
 
   // Check for [OUT_OF_SCOPE]
-  if (cleanText.includes('[OUT_OF_SCOPE]')) {
+  if (/\[OUT_OF_SCOPE\]/i.test(cleanText)) {
     outOfScope = true;
-    cleanText = cleanText.replace('[OUT_OF_SCOPE]', '').trim();
+    cleanText = cleanText.replace(/\[OUT_OF_SCOPE\]/gi, '').trim();
   }
 
   // Check for [INTENT: "..."]
-  const intentMatch = cleanText.match(/\[INTENT:\s*"([^"]+)"\]/);
+  const intentMatch = cleanText.match(/\[INTENT:\s*"([^"]+)"\]/i);
   if (intentMatch) {
     intent = intentMatch[1].trim();
     cleanText = cleanText.replace(intentMatch[0], '').trim();
   }
+
+  // Strip any accidental [USER LANGUAGE: ...], [LANGUAGE: ...], or similar bracket tags
+  cleanText = cleanText.replace(/\[USER\s*LANGUAGE:[^\]]*\]/gi, '').trim();
+  cleanText = cleanText.replace(/\[LANGUAGE:[^\]]*\]/gi, '').trim();
+  cleanText = cleanText.replace(/\[SYSTEM:[^\]]*\]/gi, '').trim();
+  cleanText = cleanText.replace(/^\[(USER\s*LANGUAGE|LANGUAGE|SYSTEM|INSTRUCTION|NOTE|HINGLISH|HINDI|ENGLISH)[^\]]*\]:?\s*/i, '').trim();
 
   // Clean up any leftover double newlines
   cleanText = cleanText.replace(/\n{3,}/g, '\n\n').trim();
