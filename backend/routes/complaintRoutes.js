@@ -1,8 +1,10 @@
 import express from 'express';
 import multer from 'multer';
 import Complaint from '../models/Complaint.js';
+import Officer from '../models/Officer.js';
 import { validateReopenReason, validateReopenImage } from '../utils/reopenAI.js';
 import { classifyIssue } from '../utils/classificationAI.js';
+import { assignComplaint } from '../utils/assignmentService.js';
 
 import { CloudinaryStorage } from "multer-storage-cloudinary";
 import cloudinary from "../utils/cloudinary.js";
@@ -35,7 +37,7 @@ router.post("/classify-issue", async (req, res) => {
       return res.status(400).json({ error: "Missing intent or description" });
     }
 
-    const result = await classifyIssue(intent, description);
+    const result = await classifyIssue(intent || '', description || intent || '');
     console.log("[Classification API] Classification result:", result);
 
     res.json(result);
@@ -115,8 +117,15 @@ router.post('/', async (req, res) => {
     // Use tracking ID from frontend if provided, otherwise generate a new one
     const trackingId = req.body.trackingId || `IND-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`;
     
-    // Create complaint with the determined trackingId
-    const complaint = new Complaint({
+    // Attempt auto-assignment
+    const { category, aiDepartment, region } = req.body;
+    let assignment = { departmentId: null, officerId: null };
+    
+    if (category && region) {
+      assignment = await assignComplaint(category, region, aiDepartment);
+    }
+    
+    const complaintData = {
       ...req.body,
       trackingId,
       timeline: [
@@ -125,8 +134,25 @@ router.post('/', async (req, res) => {
           time: new Date()
         }
       ]
-    });
+    };
+
+    if (assignment.departmentId) {
+      complaintData.departmentId = assignment.departmentId;
+    }
+    if (assignment.officerId) {
+      complaintData.officerId = assignment.officerId;
+      // Backward compatibility
+      complaintData.assignedOfficer = {
+        uid: assignment.officerId.toString(),
+        name: assignment.officerName,
+        department: assignment.departmentName
+      };
+    }
+
+    // Create complaint
+    const complaint = new Complaint(complaintData);
     const savedComplaint = await complaint.save();
+    
     res.status(201).json(savedComplaint);
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -136,7 +162,7 @@ router.post('/', async (req, res) => {
 // 2. Fetch all complaints (Sort by newest first)
 router.get('/', async (req, res) => {
   try {
-    const complaints = await Complaint.find().sort({ createdAt: -1 });
+    const complaints = await Complaint.find().populate('departmentId officerId').sort({ createdAt: -1 });
     res.status(200).json(complaints);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -190,10 +216,10 @@ router.post("/:id/rate", async (req, res) => {
 });
 
 // 7. Performance API
-router.get("/officer/performance/:name", async (req, res) => {
+router.get("/officer/performance/:id", async (req, res) => {
   try {
     const complaints = await Complaint.find({
-      "assignedOfficer.name": req.params.name
+      officerId: req.params.id
     });
 
     const total = complaints.length;
@@ -391,7 +417,7 @@ router.get('/:id', async (req, res) => {
 
     const complaint = await Complaint.findOne({
       trackingId: id
-    });
+    }).populate('departmentId officerId');
 
     if (!complaint) {
       return res.status(404).json({ message: 'Complaint not found' });
@@ -407,6 +433,14 @@ router.get('/:id', async (req, res) => {
 router.put('/:id/status', async (req, res) => {
   try {
     const { status, stage } = req.body;
+    
+    const complaint = await Complaint.findById(req.params.id);
+    if (!complaint) return res.status(404).json({ error: "Complaint not found" });
+
+    // Anti-false-closure enforcement
+    if (status === "Resolved" && (!complaint.resolutionNote || !complaint.resolutionImage)) {
+      return res.status(400).json({ error: "Cannot mark as resolved without resolution proof (note & image)" });
+    }
 
     const updateData = {};
     if (status) updateData.status = status;
@@ -425,6 +459,13 @@ router.put('/:id/status', async (req, res) => {
       },
       { new: true }
     );
+
+    // Update Officer Workload
+    if (status === "Resolved" && updatedComplaint.officerId) {
+      await Officer.findByIdAndUpdate(updatedComplaint.officerId, {
+        $inc: { currentLoad: -1, resolvedComplaints: 1 }
+      });
+    }
 
     res.json(updatedComplaint);
   } catch (err) {

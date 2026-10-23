@@ -2,12 +2,27 @@ import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import complaintRoutes from './routes/complaintRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import aiRoutes from './routes/aiRoutes.js';
+import officerRoutes from './routes/officerRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
+import cmRoutes from './routes/cmRoutes.js';
 
-// Load environment variables (Render handles this automatically)
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load environment variables (Checks current folder, parent folder, or system env)
+if (fs.existsSync(path.join(__dirname, '.env'))) {
+  dotenv.config({ path: path.join(__dirname, '.env') });
+} else if (fs.existsSync(path.join(__dirname, '../.env'))) {
+  dotenv.config({ path: path.join(__dirname, '../.env') });
+} else {
+  dotenv.config();
+}
 
 const app = express();
 
@@ -25,6 +40,9 @@ app.use((req, res, next) => {
 app.use('/api/complaints', complaintRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/officer', officerRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/cm', cmRoutes);
 
 // Root route (IMPORTANT for Render health check)
 app.all('/', (req, res) => {

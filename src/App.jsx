@@ -9,6 +9,8 @@ import FeedPage from './pages/FeedPage';
 import TrackerPage from './pages/TrackerPage';
 import RewardsPage from './pages/RewardsPage';
 import OfficerDashboard from './pages/OfficerDashboard';
+import AdminDashboard from './pages/AdminDashboard';
+import CMDashboard from './pages/CMDashboard';
 import AuthPage from './pages/AuthPage';
 import { useAuth } from './context/AuthContext';
 
@@ -133,6 +135,8 @@ function App() {
           <Route path="/tracker" element={<ProtectedRoute allowedRoles={['user']}><TrackerPage /></ProtectedRoute>} />
           <Route path="/rewards" element={<ProtectedRoute allowedRoles={['user']}><RewardsPage /></ProtectedRoute>} />
           <Route path="/officer" element={<ProtectedRoute allowedRoles={['officer']}><OfficerDashboard /></ProtectedRoute>} />
+          <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
+          <Route path="/cm" element={<ProtectedRoute allowedRoles={['cm']}><CMDashboard /></ProtectedRoute>} />
         </Routes>
       </AppLayout>
     </Router>

@@ -47,13 +47,20 @@ const Navbar = () => {
     { name: 'Feed', path: '/feed', roles: ['user'] },
     { name: 'Tracker', path: '/tracker', roles: ['user'] },
     { name: 'Rewards', path: '/rewards', roles: ['user'] },
-    { name: 'Officer Dashboard', path: '/officer', roles: ['officer'] }
+    { name: 'Officer Dashboard', path: '/officer', roles: ['officer'] },
+    { name: 'Admin Dashboard', path: '/admin', roles: ['admin'] },
+    { name: 'CM Dashboard', path: '/cm', roles: ['cm'] }
   ];
 
   const visibleLinks = navLinks.filter(link => {
-    if (user?.role === 'officer') return false;
     if (link.name === 'Home') return true;
     if (!user) return false;
+    
+    // For officials, hide user-specific pages (Feed, Tracker, Rewards)
+    if (user.role !== 'user') {
+      return link.name === 'Home' || link.name === 'Map' || link.roles.includes(user.role);
+    }
+    
     return link.roles.includes(user.role);
   });
 

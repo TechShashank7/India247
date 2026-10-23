@@ -3,58 +3,13 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import Complaint from './models/Complaint.js';
+import Department from './models/Department.js';
+import Officer from './models/Officer.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 dotenv.config({ path: path.join(__dirname, '../.env') });
-
-const seedData = [
-  {
-    title: "Large Pothole on MG Road",
-    category: "Roads",
-    description: "Huge pothole near the metro station causing traffic delays. Re-paving needed immediately.",
-    trackingId: `IND-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`,
-    location: "MG Road, Sector 14",
-    imageUrl: "https://images.unsplash.com/photo-1598229839738-520fe3c2f6ad?auto=format&fit=crop&q=80&w=1000",
-    upvotes: 42,
-    shares: 12,
-    status: "Pending",
-    comments: [
-      { text: "This has been there for weeks!", createdAt: new Date() },
-      { text: "I almost crashed my bike here.", createdAt: new Date() }
-    ]
-  },
-  {
-    title: "Broken Water Pipe Leakage",
-    category: "Water",
-    description: "Main line pipe burst near Central Park. Thousands of liters being wasted.",
-    trackingId: `IND-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`,
-    location: "Central Park East",
-    imageUrl: "https://images.unsplash.com/photo-1517646281553-9b935c101032?auto=format&fit=crop&q=80&w=1000",
-    upvotes: 28,
-    shares: 5,
-    status: "In Progress",
-    comments: [
-      { text: "Reported it yesterday.", createdAt: new Date() }
-    ]
-  },
-  {
-    title: "Uncollected Garbage Pile",
-    category: "Garbage",
-    description: "Garbage hasn't been picked up for 4 days in Block C. Foul smell spreading.",
-    trackingId: `IND-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`,
-    location: "Block C, Lajpat Nagar",
-    imageUrl: "https://images.unsplash.com/photo-1605600611284-195205ef91b2?auto=format&fit=crop&q=80&w=1000",
-    upvotes: 55,
-    shares: 20,
-    status: "Pending",
-    comments: [
-      { text: "Health hazard for kids.", createdAt: new Date() },
-      { text: "Where is the MCD truck?", createdAt: new Date() }
-    ]
-  }
-];
 
 const seedDB = async () => {
   try {
@@ -63,7 +18,110 @@ const seedDB = async () => {
     }
     await mongoose.connect(process.env.MONGO_URI);
     console.log("Connected to MongoDB for seeding...");
+
+    // Clear existing data
+    await Complaint.deleteMany({});
+    await Department.deleteMany({});
+    await Officer.deleteMany({});
+
+    // 1. Create Departments
+    const pwd = new Department({ name: 'Public Works Department (PWD)', code: 'PWD', handledCategories: ['Roads', 'Construction & Safety', 'Roads & Infrastructure'] });
+    const djb = new Department({ name: 'Delhi Jal Board (DJB)', code: 'DJB', handledCategories: ['Water', 'Water Supply & Sewer'] });
+    const mcd = new Department({ name: 'Municipal Corporation of Delhi (MCD)', code: 'MCD', handledCategories: ['Garbage', 'Sanitation & Cleanliness', 'Animal Welfare', 'Electricity & Streetlights', 'Streetlights', 'Encroachment & Illegal Activity', 'Public Facilities', 'Taxes & Documentation', 'Other Civic Issues'] });
+    await Department.insertMany([pwd, djb, mcd]);
+
+    // 2. Create Officers for all regions
+    const regions = [
+      'North Delhi', 'South Delhi', 'East Delhi', 'West Delhi', 'Central Delhi', 
+      'North East Delhi', 'North West Delhi', 'South East Delhi', 'South West Delhi', 
+      'Shahdara', 'New Delhi'
+    ];
     
+    const officersToInsert = [];
+    const departments = [pwd, djb, mcd];
+    
+    let officerCount = 1;
+    for (const dept of departments) {
+      for (const region of regions) {
+        officersToInsert.push(new Officer({
+          name: `Officer ${officerCount} (${dept.code})`,
+          email: `officer${officerCount}@${dept.code.toLowerCase()}.gov.in`,
+          phone: `99999999${officerCount % 100}`.padStart(10, '0'),
+          departmentId: dept._id,
+          region,
+          designation: 'Nodal Officer',
+          currentLoad: 0
+        }));
+        officerCount++;
+      }
+    }
+    
+    await Officer.insertMany(officersToInsert);
+
+    // Pick specific officers for seed complaints to keep references valid
+    const officer1 = officersToInsert.find(o => o.departmentId === pwd._id && o.region === 'South Delhi') || officersToInsert[0];
+    const officer2 = officersToInsert.find(o => o.departmentId === djb._id && o.region === 'Central Delhi') || officersToInsert[1];
+    const officer3 = officersToInsert.find(o => o.departmentId === mcd._id && o.region === 'South Delhi') || officersToInsert[2];
+
+    const seedData = [
+      {
+        title: "Large Pothole on MG Road",
+        category: "Roads",
+        description: "Huge pothole near the metro station causing traffic delays. Re-paving needed immediately.",
+        trackingId: `IND-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`,
+        location: "MG Road, Sector 14",
+        region: "South Delhi",
+        departmentId: pwd._id,
+        officerId: officer1._id,
+        assignedOfficer: { uid: officer1._id.toString(), name: officer1.name, department: pwd.name },
+        imageUrl: "https://images.unsplash.com/photo-1598229839738-520fe3c2f6ad?auto=format&fit=crop&q=80&w=1000",
+        upvotes: 42,
+        shares: 12,
+        status: "Pending",
+        comments: [
+          { text: "This has been there for weeks!", createdAt: new Date() },
+          { text: "I almost crashed my bike here.", createdAt: new Date() }
+        ]
+      },
+      {
+        title: "Broken Water Pipe Leakage",
+        category: "Water",
+        description: "Main line pipe burst near Central Park. Thousands of liters being wasted.",
+        trackingId: `IND-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`,
+        location: "Central Park East",
+        region: "Central Delhi",
+        departmentId: djb._id,
+        officerId: officer2._id,
+        assignedOfficer: { uid: officer2._id.toString(), name: officer2.name, department: djb.name },
+        imageUrl: "https://images.unsplash.com/photo-1517646281553-9b935c101032?auto=format&fit=crop&q=80&w=1000",
+        upvotes: 28,
+        shares: 5,
+        status: "In Progress",
+        comments: [
+          { text: "Reported it yesterday.", createdAt: new Date() }
+        ]
+      },
+      {
+        title: "Uncollected Garbage Pile",
+        category: "Garbage",
+        description: "Garbage hasn't been picked up for 4 days in Block C. Foul smell spreading.",
+        trackingId: `IND-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`,
+        location: "Block C, Lajpat Nagar",
+        region: "South Delhi",
+        departmentId: mcd._id,
+        officerId: officer3._id,
+        assignedOfficer: { uid: officer3._id.toString(), name: officer3.name, department: mcd.name },
+        imageUrl: "https://images.unsplash.com/photo-1605600611284-195205ef91b2?auto=format&fit=crop&q=80&w=1000",
+        upvotes: 55,
+        shares: 20,
+        status: "Pending",
+        comments: [
+          { text: "Health hazard for kids.", createdAt: new Date() },
+          { text: "Where is the MCD truck?", createdAt: new Date() }
+        ]
+      }
+    ];
+
     await Complaint.insertMany(seedData);
     console.log("✅ Seed data inserted successfully!");
     

@@ -54,7 +54,16 @@ const TrackerPage = () => {
   }, [location.state]);
 
   useEffect(() => {
-    if (complaint?.assignedOfficer?.name) {
+    if (complaint?.officerId) {
+      let id = complaint.officerId;
+      if (typeof id === 'object' && id._id) id = id._id;
+      
+      fetch(`https://api.india247.shashankraj.in/api/complaints/officer/performance/${id}`)
+        .then(res => res.json())
+        .then(data => setPerformance(data))
+        .catch(err => console.error("Performance error:", err));
+    } else if (complaint?.assignedOfficer?.name) {
+      // Fallback for extremely old data before officerId existed
       const officerName = encodeURIComponent(complaint.assignedOfficer.name);
       fetch(`https://api.india247.shashankraj.in/api/complaints/officer/performance/${officerName}`)
         .then(res => res.json())
@@ -331,8 +340,8 @@ const TrackerPage = () => {
                     <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center text-2xl mb-3">
                       <UserCircle size={40} className="text-blue-500" />
                     </div>
-                    <h4 className="font-bold text-navy">{complaint.assignedOfficer?.name || "Officer Sharma"}</h4>
-                    <p className="text-xs text-gray-500 mb-2">{complaint.assignedOfficer?.department || "Civil Department"}</p>
+                    <h4 className="font-bold text-navy">{complaint.officerId?.name || complaint.assignedOfficer?.name || "Officer Sharma"}</h4>
+                    <p className="text-xs text-gray-500 mb-2">{complaint.departmentId?.name || complaint.assignedOfficer?.department || "Civil Department"}</p>
                     
                     <div className="flex items-center gap-1 text-accent-gold mb-3">
                       {[1, 2, 3, 4, 5].map((star) => (

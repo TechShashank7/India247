@@ -264,6 +264,107 @@ function loadGoogleMaps() {
   });
 }
 
+// ─── Region Helper ────────────────────────────────────────────────────────────
+function deriveRegionFromLocation(locationString) {
+  if (!locationString) return 'Central Delhi';
+  const loc = locationString.toLowerCase();
+  if (loc.includes('north east') || loc.includes('northeast')) return 'North East Delhi';
+  if (loc.includes('north west') || loc.includes('northwest')) return 'North West Delhi';
+  if (loc.includes('south east') || loc.includes('southeast')) return 'South East Delhi';
+  if (loc.includes('south west') || loc.includes('southwest')) return 'South West Delhi';
+  if (loc.includes('shahdara')) return 'Shahdara';
+  if (loc.includes('north') || loc.includes('rohini')) return 'North Delhi';
+  if (loc.includes('south') || loc.includes('lajpat') || loc.includes('saket')) return 'South Delhi';
+  if (loc.includes('east') || loc.includes('mayur vihar')) return 'East Delhi';
+  if (loc.includes('west') || loc.includes('punjabi bagh')) return 'West Delhi';
+  if (loc.includes('new delhi') || loc.includes('connaught')) return 'New Delhi';
+  return 'Central Delhi';
+}
+
+// ─── Heuristic Classifier & Intent Helpers ─────────────────────────────────────
+function extractFallbackIntent(conversation, defaultVal = 'Civic Issue') {
+  const firstUserMsg = conversation.find(m => m.role === 'user')?.content;
+  if (!firstUserMsg) return defaultVal;
+  if (firstUserMsg.length <= 60) return firstUserMsg.trim();
+  const firstSentence = firstUserMsg.split(/[.?!,\n]/)[0].trim();
+  return firstSentence.length > 5 ? firstSentence : firstUserMsg.substring(0, 50).trim();
+}
+
+function classifyHeuristic(intent = '', description = '') {
+  const combined = `${intent || ''} ${description || ''}`.toLowerCase();
+
+  if (/street\s*light|streetlight|lamp\s*post|lamppost|electric\s*pole|electricity|power\s*line|exposed\s*wire|sparking|transformer|blackout|voltage|current\s*shock|short\s*circuit|meter\s*box|fuse|bijli/i.test(combined)) {
+    return {
+      category: "Electricity & Streetlights",
+      department: "Municipal Corporation of Delhi (MCD)",
+      confidence: "medium"
+    };
+  }
+
+  if (/pothole|road|pavement|footpath|divider|speed\s*breaker|bridge|flyover|underpass|asphalt|tar|sinkhole|cave-in|sadak/i.test(combined)) {
+    return {
+      category: "Roads & Infrastructure",
+      department: "Public Works Department (PWD)",
+      confidence: "medium"
+    };
+  }
+
+  if (/water\s*pipe|pipe\s*burst|water\s*leak|no\s*water|dirty\s*water|water\s*supply|sewer|sewage|drain|drainage|overflowing\s*drain|gutter|manhole|nalah|paani|jal/i.test(combined)) {
+    return {
+      category: "Water Supply & Sewer",
+      department: "Delhi Jal Board (DJB)",
+      confidence: "medium"
+    };
+  }
+
+  if (/garbage|trash|waste|dump|kachra|dustbin|overflowing\s*bin|uncollected|sweeping|filth|stench|foul\s*smell|debris|malba|cleanliness/i.test(combined)) {
+    return {
+      category: "Sanitation & Cleanliness",
+      department: "Municipal Corporation of Delhi (MCD)",
+      confidence: "medium"
+    };
+  }
+
+  if (/stray\s*dog|street\s*dog|dog\s*bite|rabies|aggressive\s*dog|barking\s*dog|cattle|cow|bull|monkey|animal\s*menace|animal\s*rescue|dead\s*animal/i.test(combined)) {
+    return {
+      category: "Animal Welfare",
+      department: "Municipal Corporation of Delhi (MCD)",
+      confidence: "medium"
+    };
+  }
+
+  if (/encroach|illegal\s*shop|hawker|squatter|illegal\s*construction|footpath\s*block|road\s*block|unauthorized\s*parking|kabza/i.test(combined)) {
+    return {
+      category: "Encroachment & Illegal Activity",
+      department: "Municipal Corporation of Delhi (MCD)",
+      confidence: "medium"
+    };
+  }
+
+  if (/park|garden|playground|swing|public\s*toilet|community\s*hall|bus\s*shelter|bus\s*stop|bench/i.test(combined)) {
+    return {
+      category: "Public Facilities",
+      department: "Municipal Corporation of Delhi (MCD)",
+      confidence: "medium"
+    };
+  }
+
+  if (/building\s*collapse|unsafe\s*wall|scaffolding|demolition|falling\s*plaster|open\s*pit|construction\s*hazard/i.test(combined)) {
+    return {
+      category: "Construction & Safety",
+      department: "Public Works Department (PWD)",
+      confidence: "medium"
+    };
+  }
+
+  return {
+    category: "Other Civic Issues",
+    department: "Municipal Corporation of Delhi (MCD)",
+    confidence: "low"
+  };
+}
+
+
 // ─── Location Picker ──────────────────────────────────────────────────────────
 const LocationPicker = ({ onLocationConfirmed }) => {
   const mapRef = useRef(null);
@@ -744,7 +845,7 @@ Respond ONLY with this exact JSON (no markdown, no extra text):
     // Capture state early before reset
     const currentLoc = formData.location;
     const currentImg = formData.imageData;
-    const currentIntent = detectedIntent;
+    const currentIntent = detectedIntent || extractFallbackIntent(conversationRef.current);
 
     setFormData(prev => ({ ...prev, anonymous: isAnonymous }));
     setStep(6);
@@ -791,7 +892,6 @@ Rules for the summary:
       });
       // Strip any hidden markers and also strip any accidental Meera greeting lines
       let { cleanText } = parseAIResponse(rawReply);
-      // Safety net: if Gemini still prepended a greeting line, remove it
       cleanText = cleanText
         .replace(/^(Namaste!?|Hello!?|Hi!?|I'm Meera[^.]*\.)\s*/i, '')
         .replace(/^(How can I help[^.]*\.)\s*/i, '')
@@ -810,28 +910,36 @@ Rules for the summary:
         setClassifying(true);
         let currentClassification = null;
         try {
-          const res = await axios.post('https://api.india247.shashankraj.in/api/complaints/classify-issue', {
+          const res = await axios.post(`${API_BASE}/api/complaints/classify-issue`, {
             intent: currentIntent,
-            description: issueSummary
+            description: cleanText || issueSummary || structuredConversation
           });
           currentClassification = res.data;
-          setClassification(res.data);
+          if (!currentClassification || currentClassification.category === "Other Civic Issues") {
+            const heuristic = classifyHeuristic(currentIntent, cleanText || issueSummary);
+            if (heuristic.category !== "Other Civic Issues") {
+              currentClassification = heuristic;
+            }
+          }
+          setClassification(currentClassification);
         } catch (err) {
-          console.error("Classification failed:", err);
-          currentClassification = {
-            category: "Other Civic Issues",
-            department: "Municipal Corporation",
-            confidence: "low"
-          };
+          console.warn("Classification API failed, falling back to heuristic:", err.message);
+          currentClassification = classifyHeuristic(currentIntent, cleanText || issueSummary);
           setClassification(currentClassification);
         }
         setClassifying(false);
 
+        const effectiveTitle = currentIntent 
+          ? (currentIntent.charAt(0).toUpperCase() + currentIntent.slice(1))
+          : (currentClassification?.category || 'Civic Issue');
+
         const payload = {
-          title: currentClassification?.category || currentIntent || 'Civic Issue',
-          category: currentClassification?.department || 'Municipal Corporation',
+          title: effectiveTitle,
+          category: currentClassification?.category || 'Other Civic Issues',
+          aiDepartment: currentClassification?.department || 'Municipal Corporation of Delhi (MCD)',
           description: cleanText,
           location: currentLoc || 'Not specified',
+          region: deriveRegionFromLocation(currentLoc),
           lat: formData.lat,
           lng: formData.lng,
           imageUrl: currentImg || null,
@@ -843,9 +951,8 @@ Rules for the summary:
             uid: user?.uid
           }
         };
-        console.log("Submitting complaint...");
-        console.log("Payload:", payload);
-        const response = await axios.post('https://api.india247.shashankraj.in/api/complaints', payload);
+        console.log("Submitting complaint...", payload);
+        const response = await axios.post(`${API_BASE}/api/complaints`, payload);
         console.log("Complaint saved:", response.data);
 
       } catch (err) {
@@ -856,35 +963,43 @@ Rules for the summary:
       setMessages(prev => [...prev, { isBot: true, text: "🎉 Your complaint has been successfully filed! Here's your official summary:" }]);
     } catch {
       setIsTyping(false);
-      const fallbackSummary = `This complaint pertains to a civic issue reported at ${currentLoc}. The matter has been forwarded to the Municipal Corporation for resolution.`;
+      const fallbackSummary = `This complaint pertains to a ${currentIntent || 'civic issue'} reported at ${currentLoc}. The matter has been forwarded to the municipal authorities for prompt inspection and resolution.`;
       setComplaintSummary(fallbackSummary);
 
       try {
         setClassifying(true);
         let currentClassification = null;
         try {
-          const res = await axios.post('https://api.india247.shashankraj.in/api/complaints/classify-issue', {
+          const res = await axios.post(`${API_BASE}/api/complaints/classify-issue`, {
             intent: currentIntent,
-            description: issueSummary
+            description: fallbackSummary || issueSummary
           });
           currentClassification = res.data;
-          setClassification(res.data);
+          if (!currentClassification || currentClassification.category === "Other Civic Issues") {
+            const heuristic = classifyHeuristic(currentIntent, fallbackSummary);
+            if (heuristic.category !== "Other Civic Issues") {
+              currentClassification = heuristic;
+            }
+          }
+          setClassification(currentClassification);
         } catch (err) {
-          console.error("Classification failed:", err);
-          currentClassification = {
-            category: "Other Civic Issues",
-            department: "Municipal Corporation",
-            confidence: "low"
-          };
+          console.warn("Classification API failed, falling back to heuristic:", err.message);
+          currentClassification = classifyHeuristic(currentIntent, fallbackSummary);
           setClassification(currentClassification);
         }
         setClassifying(false);
 
+        const effectiveTitle = currentIntent 
+          ? (currentIntent.charAt(0).toUpperCase() + currentIntent.slice(1))
+          : (currentClassification?.category || 'Civic Issue');
+
         const payload = {
-          title: currentClassification?.category || currentIntent || 'Civic Issue',
-          category: currentClassification?.department || 'Municipal Corporation',
+          title: effectiveTitle,
+          category: currentClassification?.category || 'Other Civic Issues',
+          aiDepartment: currentClassification?.department || 'Municipal Corporation of Delhi (MCD)',
           description: fallbackSummary,
           location: currentLoc || 'Not specified',
+          region: deriveRegionFromLocation(currentLoc),
           lat: formData.lat,
           lng: formData.lng,
           imageUrl: currentImg || null,
@@ -896,9 +1011,8 @@ Rules for the summary:
             uid: user?.uid
           }
         };
-        console.log("Submitting complaint...");
-        console.log("Payload:", payload);
-        const response = await axios.post('https://api.india247.shashankraj.in/api/complaints', payload);
+        console.log("Submitting fallback complaint...", payload);
+        const response = await axios.post(`${API_BASE}/api/complaints`, payload);
         console.log("Complaint saved:", response.data);
 
       } catch (err) {

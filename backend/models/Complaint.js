@@ -2,8 +2,11 @@ import mongoose from 'mongoose';
 
 const complaintSchema = new mongoose.Schema({
   title: { type: String, required: true },
-  category: { type: String, required: true },
   description: { type: String, required: true },
+  category: { type: String, required: true },
+  departmentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Department' },
+  officerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Officer' },
+  region: { type: String },
   trackingId: { type: String, required: true, unique: true },
   location: { type: String, required: true },
   imageUrl: { type: String, default: null },
@@ -29,6 +32,9 @@ const complaintSchema = new mongoose.Schema({
     value: { type: Number, min: 1, max: 5 },
     given: { type: Boolean, default: false }
   },
+  resolutionNote: { type: String, default: null },
+  resolutionImage: { type: String, default: null },
+  resolvedAt: { type: Date, default: null },
   assignedOfficer: {
     uid: String, 
     name: { type: String, default: "Officer Sharma" },
