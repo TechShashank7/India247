@@ -48,27 +48,47 @@ function basicRateLimit(req, res, next) {
   next();
 }
 
+const CHAT_MODELS = ['gemini-3.5-flash-lite', 'gemini-2.5-flash', 'gemini-3.8-flash'];
+const VISION_MODELS = ['gemini-2.5-flash', 'gemini-3.8-flash', 'gemini-3.5-flash-lite'];
+
+async function callGeminiWithFallback(models, payload, timeoutMs = 25000) {
+  let rawKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+  if (!rawKey) {
+    throw new Error("Server configuration error: Gemini API key missing.");
+  }
+  const key = rawKey.replace(/["']/g, '').trim();
+
+  let lastError = null;
+  for (const model of models) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+      const response = await axios.post(url, payload, { timeout: timeoutMs });
+      if (response.data) {
+        return response.data;
+      }
+    } catch (err) {
+      console.warn(`[aiRoutes] Model ${model} failed:`, err.response?.data?.error?.message || err.message);
+      lastError = err;
+    }
+  }
+  throw lastError || new Error("All AI models failed to respond");
+}
+
 router.use(basicRateLimit);
 
 // POST /api/ai/chat
 router.post('/chat', async (req, res) => {
   try {
-    const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
-    if (!GEMINI_API_KEY) {
-      return res.status(500).json({ error: { message: "Server configuration error: Gemini API key missing." } });
-    }
-
     const { contents, generationConfig } = req.body;
-    const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`;
-
-    const response = await axios.post(GEMINI_URL, {
-      contents,
-      generationConfig: generationConfig || { maxOutputTokens: 400, temperature: 0.7 }
-    }, {
-      timeout: 15000 // 15 seconds timeout
-    });
-
-    res.json(response.data);
+    const data = await callGeminiWithFallback(
+      CHAT_MODELS,
+      {
+        contents,
+        generationConfig: generationConfig || { maxOutputTokens: 400, temperature: 0.7 }
+      },
+      15000
+    );
+    res.json(data);
   } catch (err) {
     console.error("[aiRoutes/chat] Error:", err.response?.data || err.message);
     res.status(err.response?.status || 500).json(err.response?.data || { error: { message: "An error occurred with the AI service." } });
@@ -78,22 +98,20 @@ router.post('/chat', async (req, res) => {
 // POST /api/ai/vision
 router.post('/vision', async (req, res) => {
   try {
-    const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
-    if (!GEMINI_API_KEY) {
-      return res.status(500).json({ error: { message: "Server configuration error: Gemini API key missing." } });
-    }
-
     const { contents, generationConfig } = req.body;
-    const GEMINI_VISION_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${GEMINI_API_KEY}`;
-
-    const response = await axios.post(GEMINI_VISION_URL, {
-      contents,
-      generationConfig: generationConfig || { maxOutputTokens: 1000, temperature: 0.1 }
-    }, {
-      timeout: 20000 // 20 seconds timeout for vision
-    });
-
-    res.json(response.data);
+    const data = await callGeminiWithFallback(
+      VISION_MODELS,
+      {
+        contents,
+        generationConfig: generationConfig || {
+          maxOutputTokens: 1000,
+          temperature: 0.1,
+          responseMimeType: 'application/json'
+        }
+      },
+      30000
+    );
+    res.json(data);
   } catch (err) {
     console.error("[aiRoutes/vision] Error:", err.response?.data || err.message);
     res.status(err.response?.status || 500).json(err.response?.data || { error: { message: "An error occurred with the AI service." } });

@@ -209,6 +209,51 @@ async function callGemini({ messages }) {
   return data.candidates[0].content.parts[0].text.trim();
 }
 
+// ─── Client-side image resizer & compressor ──────────────────────────────────
+async function compressAndResizeImage(file, maxWidth = 1024, maxHeight = 1024, quality = 0.8) {
+  try {
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = reject;
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onerror = reject;
+        img.onload = () => {
+          let width = img.width;
+          let height = img.height;
+          if (width > height) {
+            if (width > maxWidth) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            }
+          } else {
+            if (height > maxHeight) {
+              width = Math.round((width * maxHeight) / height);
+              height = maxHeight;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  } catch (err) {
+    console.warn("Canvas compression failed, falling back to raw data URL", err);
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+}
+
 // ─── Gemini vision helper ─────────────────────────────────────────────────────
 async function callGeminiVision({ prompt, base64Image, mediaType }) {
   const res = await fetchWithRetry(AI_VISION_URL, {
@@ -221,7 +266,11 @@ async function callGeminiVision({ prompt, base64Image, mediaType }) {
           { text: prompt },
         ],
       }],
-      generationConfig: { maxOutputTokens: 1000, temperature: 0.1 },
+      generationConfig: {
+        maxOutputTokens: 1000,
+        temperature: 0.1,
+        responseMimeType: 'application/json'
+      },
     }),
   });
   const data = await res.json();
@@ -719,30 +768,33 @@ const ReportPage = () => {
     setUploadingImage(true);
 
     try {
-      const data = new FormData();
-      data.append("file", file);
-      data.append("upload_preset", "India247");
-
-      const res = await fetch("https://api.cloudinary.com/v1_1/dpnupufqv/image/upload", {
-        method: "POST",
-        body: data
-      });
-
-      const cloudinaryData = await res.json();
-      const imageUrl = cloudinaryData.secure_url;
-
       const previewUrl = URL.createObjectURL(file);
+      const [cloudinaryData, compressedDataUrl] = await Promise.all([
+        (async () => {
+          const data = new FormData();
+          data.append("file", file);
+          data.append("upload_preset", "India247");
+          const res = await fetch("https://api.cloudinary.com/v1_1/dpnupufqv/image/upload", {
+            method: "POST",
+            body: data
+          });
+          return res.json();
+        })(),
+        compressAndResizeImage(file, 1024, 1024, 0.8)
+      ]);
 
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setUploadingImage(false);
-        setMessages(prev => [...prev, { isBot: false, text: '📸 Photo uploaded', isImage: true, imageUrl: previewUrl }]);
-        handleAIVerification(file, imageUrl, reader.result);
-      };
-      reader.readAsDataURL(file);
-    } catch (err) {
-      console.error("Cloudinary upload failed", err);
+      const imageUrl = cloudinaryData?.secure_url;
+      if (!imageUrl) {
+        throw new Error("Cloudinary upload failed: no secure_url returned");
+      }
+
       setUploadingImage(false);
+      setMessages(prev => [...prev, { isBot: false, text: '📸 Photo uploaded', isImage: true, imageUrl: previewUrl }]);
+      handleAIVerification(file, imageUrl, compressedDataUrl);
+    } catch (err) {
+      console.error("Upload or image processing failed", err);
+      setUploadingImage(false);
+      await addBotMessage("⚠️ Could not upload or process your image. Please check your connection and try again.");
     }
   };
 
@@ -752,31 +804,53 @@ const ReportPage = () => {
     setAiVerifying(true);
     setVerificationResult(null);
 
-    const base64Data = base64FullDataUrl.split(',')[1];
-    const mediaType = file.type || 'image/jpeg';
+    const base64Data = base64FullDataUrl.includes(',')
+      ? base64FullDataUrl.split(',')[1]
+      : base64FullDataUrl;
+    const mediaType = base64FullDataUrl.startsWith('data:image/png') ? 'image/png' : 'image/jpeg';
 
-    // Build a rich prompt using the actual conversation
-    const verifyPrompt = `You are an image verification AI for India247, a civic complaint platform in India.
+    const userIssueContext = issueSummary || buildIssueSummary();
 
-A citizen has described their civic issue through this conversation:
+    // Comprehensive and strict verification prompt
+    const verifyPrompt = `You are a strict civic issue photo verification AI for India247, a civic complaint platform in India.
+
+The citizen has reported this civic issue:
 ---
-${issueSummary || buildIssueSummary()}
+${userIssueContext}
 ---
 
-Now analyze the uploaded image against this described issue.
+Your task: Analyze the uploaded photo to determine if it is genuine visual proof of the reported civic issue.
 
-Perform these checks:
-1. CLARITY (blurCheck): Is the image clear enough for a municipal officer to assess the problem? PASS if the subject is visible; FAIL if totally blurry, pitch dark, or incomprehensible.
-2. RELEVANCE (relevanceCheck): Does the image actually show what the citizen described? Compare the image content with their description. PASS if there is a reasonable match (even partial). FAIL if the image is completely unrelated — e.g. they described a pothole but uploaded a selfie, or described garbage but uploaded a food photo.
+You MUST verify TWO specific criteria:
+1. CLARITY (blurCheck):
+- true: The photo is clear enough to discern objects, structures, and scenes.
+- false: The photo is pitch black, completely blurry, washed out/pure white, corrupted, or completely unintelligible.
 
-If relevanceCheck fails, describe briefly what you actually see in the image (1 sentence) so Meera can tell the user.
+2. RELEVANCE (relevanceCheck):
+- true: The photo genuinely shows the reported civic issue (e.g. broken/fallen streetlight, pothole, road crater, garbage dump/overflow, water leak/broken pipeline, open drain/manhole, fallen electrical wire, fallen tree, waterlogging, damaged public infrastructure) or immediate on-site context where the problem occurred.
+- false: The photo is NOT proof of the reported civic issue.
+Examples that MUST FAIL (relevanceCheck: false):
+* Selfies, portraits, photos of people or faces
+* Food, meals, dishes, kitchen items
+* Pets or domestic animals (unless the issue is specifically dead animal or stray cattle menace)
+* Indoor rooms, bedrooms, ceilings, furniture, appliances
+* Screenshots of phone screens, WhatsApp chats, memes, internet graphics, logos, documents
+* Completely unrelated scenes (e.g. user reported a streetlight but uploaded a picture of a laptop or a sandwich)
 
-Respond ONLY with this exact JSON (no markdown, no extra text):
-{"passed":true,"blurCheck":true,"relevanceCheck":true,"whatISee":"","failReason":"","confidence":"high"}
+CRITICAL RULES:
+- "passed" MUST be true ONLY if BOTH blurCheck is true AND relevanceCheck is true.
+- If relevanceCheck is false, "passed" MUST be false.
+- If blurCheck is false, "passed" MUST be false.
 
-- passed: true only if BOTH checks pass
-- whatISee: brief description of what you see in the image (always fill this)
-- failReason: if passed is false, a short friendly reason why`;
+Respond ONLY with valid JSON (no markdown formatting, no code fences):
+{
+  "passed": boolean,
+  "blurCheck": boolean,
+  "relevanceCheck": boolean,
+  "whatISee": "A concise 1-sentence description of what you clearly see in this image",
+  "failReason": "If passed is false, a clear polite reason in 1 sentence why this photo does not match the complaint",
+  "confidence": "high" | "medium" | "low"
+}`;
 
     try {
       const rawText = await callGeminiVision({ prompt: verifyPrompt, base64Image: base64Data, mediaType });
@@ -784,26 +858,17 @@ Respond ONLY with this exact JSON (no markdown, no extra text):
       let result;
       try {
         result = JSON.parse(cleaned);
-        // Enforce: passed must be true only if BOTH checks pass
-        result.passed = result.blurCheck === true && result.relevanceCheck === true;
       } catch {
-        // fallback using raw text instead of blind rejection
-        const lower = cleaned.toLowerCase();
-
-        result = {
-          blurCheck: true,
-          relevanceCheck: !(
-            lower.includes("logo") ||
-            lower.includes("selfie") ||
-            lower.includes("indoor")
-          ),
-          whatISee: cleaned,
-          failReason: "Could not fully verify, but attempting fallback.",
-          confidence: "low"
-        };
-
-        result.passed = result.relevanceCheck;
+        const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          result = JSON.parse(jsonMatch[0]);
+        } else {
+          throw new Error("Invalid JSON from vision AI: " + cleaned);
+        }
       }
+
+      // STRICT ENFORCEMENT: passed can ONLY be true if both blurCheck and relevanceCheck are explicitly true
+      result.passed = Boolean(result.blurCheck === true && result.relevanceCheck === true);
 
       setVerificationResult(result);
       setAiVerifying(false);
@@ -814,26 +879,39 @@ Respond ONLY with this exact JSON (no markdown, no extra text):
         await addBotMessage(`✅ Image verified! Now please share your location so I can assign your complaint to the right officer.`);
       } else {
         // Build a natural failure message
-        let failMsg = `⚠️ I couldn't verify your photo. `;
+        let failMsg = `⚠️ I couldn't verify this photo for your complaint. `;
         if (result.whatISee) {
-          failMsg += `It looks like the image shows: "${result.whatISee}". `;
+          failMsg += `I see: "${result.whatISee}". `;
         }
         if (result.failReason) {
           failMsg += result.failReason + ' ';
+        } else {
+          failMsg += `The image doesn't appear to show the civic issue you described. `;
         }
-        failMsg += `Could you please upload a photo that clearly shows the issue you described?`;
+        failMsg += `Please upload a clear photo that shows the actual problem.`;
 
         setStep(2); // back to photo upload
         if (fileInputRef.current) fileInputRef.current.value = '';
-        await addBotMessage(failMsg, 400);
+        if (cameraInputRef.current) cameraInputRef.current.value = '';
+        await addBotMessage(failMsg, 300);
       }
-    } catch {
-      // On API error, be lenient
-      setVerificationResult({ passed: true, blurCheck: true, relevanceCheck: true, whatISee: '', failReason: '', confidence: 'low' });
+    } catch (err) {
+      console.error("AI Vision verification failed:", err);
       setAiVerifying(false);
-      setFormData(prev => ({ ...prev, imageVerified: true, imageData: imageUrl }));
-      setStep(4);
-      await addBotMessage(`✅ Photo received! Now please share your location so I can route your complaint correctly.`);
+      setVerificationResult({
+        passed: false,
+        blurCheck: false,
+        relevanceCheck: false,
+        whatISee: 'Verification connection error',
+        failReason: 'Could not connect to AI verification service.',
+        confidence: 'low'
+      });
+      setStep(2);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      if (cameraInputRef.current) cameraInputRef.current.value = '';
+      await addBotMessage(
+        `⚠️ Could not verify photo due to a network or server issue. Please check your internet connection and try uploading the photo again.`
+      );
     }
   };
 
@@ -1174,7 +1252,7 @@ Rules for the summary:
             )}
 
             {/* AI Verification panel */}
-            {(aiVerifying || (verificationResult && step === 3)) && (
+            {(aiVerifying || (verificationResult && (step === 3 || (!verificationResult.passed && step === 2)))) && (
               <div className="ml-10 mr-4 max-w-sm rounded-2xl p-5 mb-6 border border-indigo-100 bg-white shadow-[0_10px_30px_rgba(79,70,229,0.08)]">
                 <div className="flex items-center gap-3 font-bold text-gray-800 mb-4 font-heading">
                   {aiVerifying
@@ -1212,6 +1290,11 @@ Rules for the summary:
                         Matches your description
                       </span>
                     </div>
+                    {verificationResult.whatISee && (
+                      <p className="text-xs text-gray-500 italic mt-1 bg-gray-50 p-2 rounded-lg border border-gray-100">
+                        <span className="font-semibold text-gray-600">Detected:</span> {verificationResult.whatISee}
+                      </p>
+                    )}
                     {verificationResult.passed
                       ? <p className="mt-3 text-india-green font-semibold">✅ Verified — Confidence: {verificationResult.confidence}</p>
                       : <p className="mt-3 text-red-600 font-medium">⚠️ Please re-upload a relevant photo</p>
