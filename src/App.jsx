@@ -34,8 +34,6 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   return children;
 };
 
-
-
 // Simple bottom nav for mobile
 const BottomNav = () => {
   const location = useLocation();
@@ -134,8 +132,8 @@ function App() {
           <Route path="/feed" element={<ProtectedRoute allowedRoles={['user']}><FeedPage /></ProtectedRoute>} />
           <Route path="/tracker" element={<ProtectedRoute allowedRoles={['user']}><TrackerPage /></ProtectedRoute>} />
           <Route path="/rewards" element={<ProtectedRoute allowedRoles={['user']}><RewardsPage /></ProtectedRoute>} />
-          <Route path="/officer" element={<ProtectedRoute allowedRoles={['officer']}><OfficerDashboard /></ProtectedRoute>} />
-          <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
+          <Route path="/officer" element={<ProtectedRoute allowedRoles={['officer', 'admin']}><OfficerDashboard /></ProtectedRoute>} />
+          <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin', 'officer']}><AdminDashboard /></ProtectedRoute>} />
           <Route path="/cm" element={<ProtectedRoute allowedRoles={['cm']}><CMDashboard /></ProtectedRoute>} />
         </Routes>
       </AppLayout>

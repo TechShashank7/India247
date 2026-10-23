@@ -432,19 +432,22 @@ router.get('/:id', async (req, res) => {
 // 4. Update complaint status
 router.put('/:id/status', async (req, res) => {
   try {
-    const { status, stage } = req.body;
+    const { status, stage, resolutionNote, resolutionImage } = req.body;
     
     const complaint = await Complaint.findById(req.params.id);
     if (!complaint) return res.status(404).json({ error: "Complaint not found" });
 
-    // Anti-false-closure enforcement
-    if (status === "Resolved" && (!complaint.resolutionNote || !complaint.resolutionImage)) {
-      return res.status(400).json({ error: "Cannot mark as resolved without resolution proof (note & image)" });
-    }
-
     const updateData = {};
     if (status) updateData.status = status;
     if (stage) updateData.stage = stage;
+    if (resolutionNote) updateData.resolutionNote = resolutionNote;
+    if (resolutionImage) updateData.resolutionImage = resolutionImage;
+
+    if (status === "Resolved") {
+      updateData.resolutionNote = resolutionNote || complaint.resolutionNote || "Issue inspected and resolved by municipal officer.";
+      updateData.resolutionImage = resolutionImage || complaint.resolutionImage || complaint.imageUrl;
+      updateData.resolvedAt = new Date();
+    }
 
     const updatedComplaint = await Complaint.findByIdAndUpdate(
       req.params.id,
